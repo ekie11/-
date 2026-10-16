@@ -30,7 +30,9 @@ def run_check(model: DocModel, profile: Profile) -> RunResult:
     return result
 
 
-def run_fix(model: DocModel, profile: Profile) -> None:
+def run_fix(model: DocModel, profile: Profile) -> list[str]:
+    """Применить исправления; вернуть ключи правил, чьё исправление упало."""
+    failed: list[str] = []
     for key, cfg in profile.rules.items():
         rule_cls = REGISTRY.get(key)
         if not cfg.enabled or rule_cls is None or not rule_cls.fixable:
@@ -39,3 +41,5 @@ def run_fix(model: DocModel, profile: Profile) -> None:
             rule_cls().fix(model, cfg)
         except Exception:
             logger.exception("Исправление правила %s завершилось с ошибкой", key)
+            failed.append(key)
+    return failed

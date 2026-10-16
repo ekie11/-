@@ -182,9 +182,10 @@ def test_run_fix_exception_is_logged_and_next_rule_runs(caplog):
             calls.append("fix")
 
     with caplog.at_level("ERROR"):
-        run_fix(_model(), _profile(**{KEY_B: _cfg(), KEY_C: _cfg()}))
+        failed = run_fix(_model(), _profile(**{KEY_B: _cfg(), KEY_C: _cfg()}))
 
     assert calls == ["fix"]
+    assert failed == [KEY_B]
     assert any(KEY_B in r.getMessage() or KEY_B in str(r.exc_info) for r in caplog.records)
 
 
