@@ -4,6 +4,7 @@ from collections import Counter
 
 from docx.oxml.ns import qn
 from docx.text.paragraph import Paragraph
+from docx.text.run import Run
 
 TWIPS_PER_CM = 566.929
 EMU_PER_MM = 36000
@@ -12,6 +13,11 @@ EMU_PER_MM = 36000
 def fmt_num(value: float, digits: int = 2) -> str:
     """Число с десятичной запятой, без лишних нулей."""
     return f"{round(value, digits):g}".replace(".", ",")
+
+
+def all_runs(par: Paragraph) -> list[Run]:
+    """Все w:r абзаца, включая вложенные (гиперссылки и т. п.)."""
+    return [Run(r, par) for r in par._p.xpath(".//w:r")]
 
 
 def _style_chain(par: Paragraph):
@@ -57,7 +63,7 @@ def _sz_pt(rpr):
 
 def _dominant(par: Paragraph, run_getter, inherited):
     counts: Counter = Counter()
-    for run in par.runs:
+    for run in all_runs(par):
         n = len(run.text.strip())
         if not n:
             continue

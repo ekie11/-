@@ -157,3 +157,26 @@ def test_fix_does_not_modify_styles_or_table_cells():
     assert effective_font_size_pt(body) == 14
     assert (effective_font_name(cell), effective_font_size_pt(cell)) == ("Arial", 8.0)
     assert (normal.font.name, normal.font.size) == ("Arial", Pt(8))
+
+
+def test_hyperlink_run_font_checked_and_fixed():
+    from docx.oxml import OxmlElement
+    from docx.shared import Pt
+    from docx.text.run import Run
+    doc = build_docx([("p", "x")])
+    p = doc.paragraphs[0]
+    p._p.remove(p.runs[0]._r)
+    link = OxmlElement("w:hyperlink")
+    r = OxmlElement("w:r")
+    t = OxmlElement("w:t")
+    t.text = "ссылка"
+    r.append(t)
+    link.append(r)
+    p._p.append(link)
+    run = Run(r, p)
+    run.font.name, run.font.size = "Arial", Pt(11)
+    assert len(check("body.font_name", doc)) == 1
+    assert len(check("body.font_size", doc)) == 1
+    fix("body.font_name", doc)
+    fix("body.font_size", doc)
+    assert check("body.font_name", doc) == [] and check("body.font_size", doc) == []

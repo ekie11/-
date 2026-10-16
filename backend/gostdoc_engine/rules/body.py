@@ -47,7 +47,7 @@ class FontNameRule(Rule):
         for p in _targets(model):
             if units.effective_font_name(p.para) == exp:
                 continue
-            for run in p.para.runs:
+            for run in units.all_runs(p.para):
                 run.font.name = exp
                 rf = run._r.rPr.find(qn("w:rFonts"))
                 for attr in ("w:asciiTheme", "w:hAnsiTheme", "w:cstheme", "w:eastAsiaTheme"):
@@ -78,7 +78,7 @@ class FontSizeRule(Rule):
             act = units.effective_font_size_pt(p.para)
             if act is None or act >= min_pt:
                 continue
-            for run in p.para.runs:
+            for run in units.all_runs(p.para):
                 run.font.size = Pt(target)
                 rpr = run._r.rPr
                 for el in rpr.findall(qn("w:szCs")):
