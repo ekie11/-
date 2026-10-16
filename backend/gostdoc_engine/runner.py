@@ -1,0 +1,41 @@
+"""Запуск правил профиля над моделью документа."""
+
+import logging
+from dataclasses import dataclass, field
+
+from .model import DocModel
+from .profile import Profile
+from .rules.base import REGISTRY, Issue
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class RunResult:
+    issues: list[Issue] = field(default_factory=list)
+    failed_rules: list[str] = field(default_factory=list)
+
+
+def run_check(model: DocModel, profile: Profile) -> RunResult:
+    result = RunResult()
+    for key, cfg in profile.rules.items():
+        rule_cls = REGISTRY.get(key)
+        if not cfg.enabled or rule_cls is None:
+            continue
+        try:
+            result.issues.extend(rule_cls().check(model, cfg))
+        except Exception:
+            logger.exception("Правило %s завершилось с ошибкой", key)
+            result.failed_rules.append(key)
+    return result
+
+
+def run_fix(model: DocModel, profile: Profile) -> None:
+    for key, cfg in profile.rules.items():
+        rule_cls = REGISTRY.get(key)
+        if not cfg.enabled or rule_cls is None or not rule_cls.fixable:
+            continue
+        try:
+            rule_cls().fix(model, cfg)
+        except Exception:
+            logger.exception("Исправление правила %s завершилось с ошибкой", key)
