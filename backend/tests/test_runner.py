@@ -20,6 +20,7 @@ assert {KEY_A, KEY_B, KEY_C} <= KNOWN_RULE_KEYS
 @pytest.fixture(autouse=True)
 def registry_snapshot():
     saved = dict(REGISTRY)
+    REGISTRY.clear()  # изоляция от реальных правил, зарегистрированных при импорте
     yield REGISTRY
     REGISTRY.clear()
     REGISTRY.update(saved)
