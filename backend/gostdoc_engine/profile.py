@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Literal
 
@@ -55,5 +56,10 @@ def load_profile(path: Path) -> Profile:
 
 
 def builtin_profile(profile_id: str) -> Profile:
+    if not re.fullmatch(r"[a-z0-9.\-]+", profile_id):
+        raise ValueError(f"Недопустимый идентификатор профиля: {profile_id!r}")
     filename = profile_id.replace("-", "_").replace(".", "_") + ".json"
-    return load_profile(PROFILES_DIR / filename)
+    path = PROFILES_DIR / filename
+    if not path.is_file():
+        raise ValueError(f"Неизвестный профиль: {profile_id}")
+    return load_profile(path)

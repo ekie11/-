@@ -6,7 +6,7 @@ from typing import Literal
 
 from . import rules  # noqa: F401  (регистрация всех правил)
 from .analyze import analyze
-from .comments import add_comments
+from .comments import add_comments, remove_service_comments
 from .importer import load_docx, text_to_docx
 from .profile import Profile
 from .runner import run_check, run_fix
@@ -21,6 +21,7 @@ class ProcessResult:
 
 def process(data: bytes | str, profile: Profile, mode: Literal["check", "format"]) -> ProcessResult:
     doc = text_to_docx(data) if isinstance(data, str) else load_docx(data)
+    remove_service_comments(doc)
     model = analyze(doc)
     failed: list[str] = []
     if mode == "format":

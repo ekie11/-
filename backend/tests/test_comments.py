@@ -104,3 +104,23 @@ def test_no_issues_adds_nothing():
     doc = Document()
     assert add_comments(analyze(doc), []) == 0
     assert reload_comments(doc) == []
+
+
+def test_remove_service_comments_keeps_foreign():
+    from gostdoc_engine.comments import remove_service_comments
+
+    doc = build_docx(BLOCKS)
+    model = analyze(doc)
+    add_comments(model, [issue("п. 1", "Наше", 0)])
+    runs = list(model.paragraphs[1].para.runs)
+    doc.add_comment(runs, text="Чужое", author="Иван", initials="И")
+
+    assert remove_service_comments(doc) == 1
+
+    comments = reload_comments(doc)
+    assert [comment_text(c) for c in comments] == ["Чужое"]
+    body = doc.element.body
+    assert len(body.xpath(".//w:commentRangeStart")) == 1
+    assert len(body.xpath(".//w:commentRangeEnd")) == 1
+    assert len(body.xpath(".//w:commentReference")) == 1
+    assert remove_service_comments(build_docx(BLOCKS)) == 0

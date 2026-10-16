@@ -2,7 +2,9 @@
 
 import re
 
-from .model import DocModel
+from .model import DocModel, Role
+
+_LENIENT = {Role.HEADING_1, Role.HEADING_2, Role.HEADING_3, Role.STRUCTURAL}
 
 _QUOTES = re.compile("[«»„“”\"']")
 _DASHES = re.compile("[—–‑]")
@@ -13,10 +15,13 @@ class TextChangedError(Exception):
 
 
 def normalized_words(model: DocModel) -> list[str]:
-    """Слова всех абзацев (включая таблицы): кавычки, тире, пробелы и регистр унифицированы; конечная точка абзаца не учитывается."""
+    """Слова всех абзацев (включая таблицы): кавычки, тире, пробелы и регистр унифицированы; конечная точка не учитывается только у заголовков."""
     words: list[str] = []
     for p in model.paragraphs:
         text = _DASHES.sub("-", _QUOTES.sub('"', p.text)).casefold()
-        # точка в конце абзаца: правило заголовков может её убрать
-        words.extend(text.strip().removesuffix(".").split())
+        # точка в конце: правило заголовков может её убрать
+        text = text.strip()
+        if p.role in _LENIENT:
+            text = text.removesuffix(".")
+        words.extend(text.split())
     return words

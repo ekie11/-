@@ -63,6 +63,32 @@ def test_format_is_idempotent():
     assert _comments(second.docx_bytes) == _comments(first.docx_bytes)
 
 
+def test_reprocessing_does_not_pile_up_comments():
+    first = process(_bad(), P, "format")
+    second = process(first.docx_bytes, P, "format")
+    assert _comments(second.docx_bytes) == _comments(first.docx_bytes)
+    checked = process(second.docx_bytes, P, "check")
+    assert _comments(checked.docx_bytes) == len(
+        {i["paragraph_index"] for i in checked.report["issues"] if i["paragraph_index"] is not None}
+        | ({None} if any(i["paragraph_index"] is None for i in checked.report["issues"]) else set())
+    )
+
+
+def test_repeated_check_keeps_comment_count():
+    one = process(_bad(), P, "check")
+    two = process(one.docx_bytes, P, "check")
+    three = process(two.docx_bytes, P, "check")
+    assert _comments(one.docx_bytes) > 0
+    assert _comments(three.docx_bytes) == _comments(one.docx_bytes)
+
+
+def test_user_comment_survives_format():
+    d = build_docx(BLOCKS, **BAD)
+    d.add_comment(list(d.paragraphs[1].runs), text="Моё", author="Иван", initials="И")
+    out = load_docx(process(save(d), P, "format").docx_bytes)
+    assert [c.author for c in out.comments if c.author == "Иван"] == ["Иван"]
+
+
 def test_check_does_not_modify_formatting():
     res = process(_bad(), P, "check")
     assert res.report["issues"]
@@ -183,3 +209,59 @@ def test_cli_input_error(tmp_path):
         check=False,
     )
     assert r.returncode == 2 and r.stderr.strip()
+
+
+def _cli(*args):
+    return subprocess.run(
+        [sys.executable, "-m", "gostdoc_engine", *args],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def _assert_user_error(r):
+    assert r.returncode == 2
+    assert r.stderr.strip()
+    assert "Traceback" not in r.stderr
+
+
+def test_cli_unknown_profile(tmp_path):
+    src = tmp_path / "a.txt"
+    src.write_text("Текст.\n", encoding="utf-8")
+    _assert_user_error(
+        _cli(str(src), "--text", "--profile", "nope-1", "--mode", "check", "-o", str(tmp_path / "o.docx"))
+    )
+
+
+def test_cli_path_traversal_profile(tmp_path):
+    src = tmp_path / "a.txt"
+    src.write_text("Текст.\n", encoding="utf-8")
+    _assert_user_error(
+        _cli(str(src), "--text", "--profile", "../x", "--mode", "check", "-o", str(tmp_path / "o.docx"))
+    )
+
+
+def test_builtin_profile_rejects_bad_id():
+    with pytest.raises(ValueError):
+        builtin_profile("../x")
+    with pytest.raises(ValueError):
+        builtin_profile("nope-1")
+
+
+def test_cli_missing_input(tmp_path):
+    _assert_user_error(_cli(str(tmp_path / "none.docx"), "--mode", "check", "-o", str(tmp_path / "o.docx")))
+
+
+def test_cli_non_utf8_text(tmp_path):
+    src = tmp_path / "a.txt"
+    src.write_bytes("Привет".encode("cp1251"))
+    _assert_user_error(_cli(str(src), "--text", "--mode", "check", "-o", str(tmp_path / "o.docx")))
+
+
+def test_body_final_period_drop_detected():
+    d = docx.Document()
+    d.add_paragraph("Обычный текст.")
+    before = normalized_words(analyze(d))
+    d.paragraphs[0].runs[0].text = "Обычный текст"
+    assert normalized_words(analyze(d)) != before

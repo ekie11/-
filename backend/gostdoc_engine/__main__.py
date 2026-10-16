@@ -1,13 +1,16 @@
-"""CLI: python -m gostdoc_engine IN [--text] --profile ID|path.json --mode check|format -o OUT."""
+"""CLI: python -m gostdoc_engine IN [--text] [--profile ID|path.json] --mode check|format -o OUT."""
 
 import argparse
 import json
 import sys
 from pathlib import Path
 
+import pydantic
+
 from .importer import InputError
 from .pipeline import process
 from .profile import builtin_profile, load_profile
+from .textguard import TextChangedError
 
 
 def _profile(arg: str):
@@ -32,6 +35,21 @@ def main(argv: list[str] | None = None) -> int:
         result = process(data, profile, args.mode)
     except InputError as exc:
         print(str(exc), file=sys.stderr)
+        return 2
+    except FileNotFoundError as exc:
+        print(f"Ошибка: файл не найден: {exc.filename}", file=sys.stderr)
+        return 2
+    except UnicodeDecodeError:
+        print("Ошибка: входной текст должен быть в кодировке UTF-8", file=sys.stderr)
+        return 2
+    except TextChangedError as exc:
+        print(f"Ошибка: {exc}", file=sys.stderr)
+        return 2
+    except pydantic.ValidationError:
+        print("Ошибка: некорректный JSON-профиль", file=sys.stderr)
+        return 2
+    except ValueError as exc:
+        print(f"Ошибка: {exc}", file=sys.stderr)
         return 2
     Path(args.output).write_bytes(result.docx_bytes)
     if args.report:

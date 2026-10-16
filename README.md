@@ -45,10 +45,10 @@ cd backend && pytest -q
 Общий вид команды:
 
 ```bash
-python -m gostdoc_engine IN [--text] --profile ID|путь.json --mode check|format -o OUT [--report REPORT]
+python -m gostdoc_engine IN [--text] [--profile ID|путь.json] --mode check|format -o OUT [--report REPORT]
 ```
 
-- `IN` — входной файл (DOCX, либо текст при `--text`);
+- `IN` — входной файл (DOCX, либо текст при `--text`); `thesis.docx` в примерах — ваш файл;
 - `--profile` — ID встроенного профиля (по умолчанию `gost-7.32-2017`) или путь к JSON-профилю;
 - `--mode` — `check` или `format` (обязательный);
 - `-o` — выходной DOCX;
