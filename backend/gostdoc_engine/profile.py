@@ -1,0 +1,59 @@
+"""Модель профиля требований."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Literal
+
+from pydantic import BaseModel, field_validator
+
+KNOWN_RULE_KEYS: frozenset[str] = frozenset(
+    {
+        "page.size",
+        "page.margins",
+        "body.font_name",
+        "body.font_size",
+        "body.line_spacing",
+        "body.first_line_indent",
+        "body.alignment",
+        "headings.section",
+        "headings.structural",
+        "captions.figure",
+        "captions.table",
+        "page_numbers",
+    }
+)
+
+PROFILES_DIR = Path(__file__).resolve().parent.parent / "profiles"
+
+
+class RuleConfig(BaseModel):
+    value: dict
+    severity: Literal["error", "recommendation"]
+    enabled: bool = True
+    source: str
+
+
+class Profile(BaseModel):
+    id: str
+    name: str
+    base: str | None
+    readonly: bool
+    rules: dict[str, RuleConfig]
+
+    @field_validator("rules")
+    @classmethod
+    def _known_keys(cls, rules: dict[str, RuleConfig]) -> dict[str, RuleConfig]:
+        unknown = sorted(set(rules) - KNOWN_RULE_KEYS)
+        if unknown:
+            raise ValueError(f"Неизвестные ключи правил: {', '.join(unknown)}")
+        return rules
+
+
+def load_profile(path: Path) -> Profile:
+    return Profile.model_validate_json(Path(path).read_text(encoding="utf-8"))
+
+
+def builtin_profile(profile_id: str) -> Profile:
+    filename = profile_id.replace("-", "_").replace(".", "_") + ".json"
+    return load_profile(PROFILES_DIR / filename)
