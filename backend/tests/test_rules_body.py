@@ -79,7 +79,7 @@ def test_run_level_font_detected_and_fixed():
     assert len(check("body.font_name", doc)) == 2
     fix("body.font_name", doc)
     assert check("body.font_name", doc) == []
-    assert all(r._r.rPr.find(qn("w:rFonts")) is None for p in doc.paragraphs for r in p.runs)
+    assert all(r.font.name == "Times New Roman" for p in doc.paragraphs for r in p.runs)
 
 
 def test_dominant_font_by_chars():
@@ -133,3 +133,27 @@ def test_style_level_properties_resolved():
     st.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     for key in KEYS:
         assert check(key, doc) == []
+
+
+def test_fix_does_not_modify_styles_or_table_cells():
+    from docx.shared import Pt
+
+    from gostdoc_engine.units import effective_font_name, effective_font_size_pt
+    doc = build_docx([("p", "Текст."), ("table", "a|b")])
+    normal = doc.styles["Normal"]
+    normal.font.name, normal.font.size = "Arial", Pt(8)
+    for r in doc.paragraphs[0].runs:
+        r._r.rPr.remove(r._r.rPr.find(qn("w:rFonts")))
+        r._r.rPr.remove(r._r.rPr.find(qn("w:sz")))
+    cell = doc.tables[0].cell(0, 0).paragraphs[0]
+    for r in cell.runs:
+        r._r.rPr.remove(r._r.rPr.find(qn("w:rFonts")))
+        r._r.rPr.remove(r._r.rPr.find(qn("w:sz")))
+    body = doc.paragraphs[0]
+    assert (effective_font_name(cell), effective_font_size_pt(cell)) == ("Arial", 8.0)
+    fix("body.font_name", doc)
+    fix("body.font_size", doc)
+    assert check("body.font_name", doc) == [] and check("body.font_size", doc) == []
+    assert effective_font_size_pt(body) == 14
+    assert (effective_font_name(cell), effective_font_size_pt(cell)) == ("Arial", 8.0)
+    assert (normal.font.name, normal.font.size) == ("Arial", Pt(8))

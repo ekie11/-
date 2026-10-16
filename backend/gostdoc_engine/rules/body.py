@@ -27,20 +27,6 @@ def _issue(rule: Rule, cfg: RuleConfig, p: DocParagraph, message: str, exp: str,
                  expected=exp, actual=act, paragraph_index=p.index, fixable=True)
 
 
-def _clear_run_props(par, *tags: str) -> None:
-    for run in par.runs:
-        rpr = run._r.rPr
-        if rpr is None:
-            continue
-        for tag in tags:
-            for el in rpr.findall(qn(tag)):
-                rpr.remove(el)
-
-
-def _style_rpr_target(par):
-    return par.style.font
-
-
 @register
 class FontNameRule(Rule):
     key = "body.font_name"
@@ -61,16 +47,14 @@ class FontNameRule(Rule):
         for p in _targets(model):
             if units.effective_font_name(p.para) == exp:
                 continue
-            _clear_run_props(p.para, "w:rFonts")
-            if units.effective_font_name(p.para) != exp:
-                font = _style_rpr_target(p.para)
-                font.name = exp
-                rf = p.para.style.element.rPr.find(qn("w:rFonts"))
-                for attr in ("w:ascii", "w:hAnsi", "w:cs", "w:eastAsia"):
-                    rf.set(qn(attr), exp)
+            for run in p.para.runs:
+                run.font.name = exp
+                rf = run._r.rPr.find(qn("w:rFonts"))
                 for attr in ("w:asciiTheme", "w:hAnsiTheme", "w:cstheme", "w:eastAsiaTheme"):
                     if rf.get(qn(attr)) is not None:
                         del rf.attrib[qn(attr)]
+                for attr in ("w:ascii", "w:hAnsi", "w:cs", "w:eastAsia"):
+                    rf.set(qn(attr), exp)
 
 
 @register
@@ -94,12 +78,13 @@ class FontSizeRule(Rule):
             act = units.effective_font_size_pt(p.para)
             if act is None or act >= min_pt:
                 continue
-            _clear_run_props(p.para, "w:sz", "w:szCs")
-            if (units.effective_font_size_pt(p.para) or 0) < min_pt:
-                p.para.style.font.size = Pt(target)
-                rpr = p.para.style.element.rPr
+            for run in p.para.runs:
+                run.font.size = Pt(target)
+                rpr = run._r.rPr
                 for el in rpr.findall(qn("w:szCs")):
                     rpr.remove(el)
+                szcs = rpr.makeelement(qn("w:szCs"), {qn("w:val"): str(int(target * 2))})
+                rpr.find(qn("w:sz")).addnext(szcs)
 
 
 @register
