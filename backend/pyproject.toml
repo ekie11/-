@@ -32,6 +32,7 @@ gostdoc_api = ["migrations/*.py", "migrations/versions/*.py", "migrations/*.mako
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = ["soffice: needs LibreOffice"]
 
 [tool.ruff]
 line-length = 100
