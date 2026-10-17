@@ -1,0 +1,123 @@
+{
+  "id": "gost-7.32-2017",
+  "name": "ГОСТ 7.32-2017",
+  "base": null,
+  "readonly": true,
+  "rules": {
+    "page.size": {
+      "value": {
+        "format": "A4",
+        "orientation": "portrait"
+      },
+      "severity": "error",
+      "enabled": true,
+      "source": "п. 6.1.1"
+    },
+    "page.margins": {
+      "value": {
+        "top_mm": 20,
+        "bottom_mm": 20,
+        "left_mm": 30,
+        "right_mm": 15
+      },
+      "severity": "error",
+      "enabled": true,
+      "source": "п. 6.1.1"
+    },
+    "body.font_name": {
+      "value": {
+        "name": "Times New Roman"
+      },
+      "severity": "recommendation",
+      "enabled": true,
+      "source": "п. 6.1.1"
+    },
+    "body.font_size": {
+      "value": {
+        "min_pt": 12,
+        "target_pt": 14
+      },
+      "severity": "error",
+      "enabled": true,
+      "source": "п. 6.1.1"
+    },
+    "body.line_spacing": {
+      "value": {
+        "multiple": 1.5
+      },
+      "severity": "error",
+      "enabled": true,
+      "source": "п. 6.1.1"
+    },
+    "body.first_line_indent": {
+      "value": {
+        "cm": 1.25
+      },
+      "severity": "error",
+      "enabled": true,
+      "source": "п. 6.1.1"
+    },
+    "body.alignment": {
+      "value": {
+        "align": "justify"
+      },
+      "severity": "error",
+      "enabled": true,
+      "source": "п. 6.1.1"
+    },
+    "headings.section": {
+      "value": {
+        "bold": true,
+        "align": "left",
+        "first_line_indent_cm": 1.25,
+        "trailing_period": false,
+        "page_break_before_level1": true
+      },
+      "severity": "error",
+      "enabled": true,
+      "source": "п. 6.2.1–6.2.3"
+    },
+    "headings.structural": {
+      "value": {
+        "bold": true,
+        "align": "center",
+        "uppercase": true,
+        "trailing_period": false,
+        "page_break_before": true
+      },
+      "severity": "error",
+      "enabled": true,
+      "source": "п. 6.2.1"
+    },
+    "captions.figure": {
+      "value": {
+        "pattern": "Рисунок {n} — {title}",
+        "position": "below",
+        "align": "center"
+      },
+      "severity": "error",
+      "enabled": true,
+      "source": "п. 6.5.5"
+    },
+    "captions.table": {
+      "value": {
+        "pattern": "Таблица {n} — {title}",
+        "position": "above",
+        "align": "left",
+        "first_line_indent_cm": 0
+      },
+      "severity": "error",
+      "enabled": true,
+      "source": "п. 6.6.3"
+    },
+    "page_numbers": {
+      "value": {
+        "position": "bottom_center",
+        "show_on_first": false
+      },
+      "severity": "error",
+      "enabled": true,
+      "source": "п. 6.3.1"
+    }
+  }
+}

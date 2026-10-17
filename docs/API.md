@@ -1,0 +1,80 @@
+# GostDoc API (этап 2)
+
+HTTP-API поверх движка `gostdoc_engine`: регистрация, профили, задачи проверки
+и оформления документов. Все сообщения об ошибках — по-русски, в виде
+`{"detail": "..."}`. Ошибки валидации запроса и разбора формы (в т.ч. текстовое поле больше 1 МБ)
+возвращаются с кодом 400 и русским сообщением («Неверные данные запроса»,
+«Неверные данные формы»). Тело запроса больше 21 МБ отклоняется с кодом 413
+(«Файл слишком большой — максимум 20 МБ»). В продакшене лимит нужно задать и на
+обратном прокси (nginx: `client_max_body_size 21m;`).
+
+## Переменные окружения
+
+| Переменная | По умолчанию | Назначение |
+|---|---|---|
+| `DATABASE_URL` | `sqlite:///./gostdoc.db` | строка подключения SQLAlchemy (если не задана — SQLite для разработки и предупреждение в логе при старте; для продакшена — Postgres, например `postgresql+psycopg://user:pass@host/db`) |
+| `REDIS_URL` | `redis://localhost:6379/0` | Redis для очереди задач (RQ) |
+| `STORAGE_DIR` | `./storage` | каталог файлов задач (`jobs/<id>/`) |
+| `COOKIE_SECURE` | `true` | флаг `Secure` у cookie `session`; для локальной работы по HTTP задайте `false` |
+| `SOFFICE_PATH` | `soffice` | путь к LibreOffice для PDF-предпросмотра |
+| `JOB_TIMEOUT_S` | `120` | таймаут задачи, секунды; конвертация в PDF получает `max(10, min(60, JOB_TIMEOUT_S // 2))` |
+| `FILE_TTL_DAYS` | `30` | срок хранения файлов задачи, дни |
+
+## Локальный запуск
+
+Нужны Python 3.12+, Redis (из системы или `docker run -p 6379:6379 redis`),
+по желанию LibreOffice (без него работает всё, кроме PDF-предпросмотра) и
+Postgres (по умолчанию используется SQLite).
+
+```bash
+pip install -e "backend[dev]"
+cd backend
+export COOKIE_SECURE=false          # локально по HTTP
+
+python -m gostdoc_api migrate       # применить миграции БД (alembic upgrade head)
+python -m gostdoc_api serve         # API на http://127.0.0.1:8000 (--host, --port)
+python -m gostdoc_api worker        # в отдельном терминале: воркер очереди
+python -m gostdoc_api cleanup       # однократная очистка просроченных файлов и сессий
+```
+
+Очистку запускайте по расписанию, например раз в сутки через cron:
+
+```cron
+15 3 * * * cd /srv/gostdoc/backend && python -m gostdoc_api cleanup
+```
+
+Очистка помечает задачи с истёкшим сроком статусом `expired`, удаляет их файлы
+и просроченные сессии. Запись задачи остаётся, скачивание даёт 410.
+
+## Аутентификация
+
+Сессия хранится в httpOnly-cookie `session` (SameSite=Lax, 30 дней). Все
+эндпоинты, кроме `/health`, `/auth/register` и `/auth/login`, требуют входа
+(иначе 401 «Нужно войти»). Чужие профили и задачи отдают 404.
+
+## Эндпоинты
+
+| Метод | Путь | Запрос | Успех | Ошибки |
+|---|---|---|---|---|
+| GET | `/health` | — | 200 `{"status":"ok"}` | — |
+| POST | `/auth/register` | JSON `{email, password}` (пароль от 8 символов) | 201 `{id, email}`, ставит cookie | 400 неверный email/короткий пароль; 409 email занят |
+| POST | `/auth/login` | JSON `{email, password}` | 200 `{id, email}`, ставит cookie | 401 неверный email или пароль |
+| POST | `/auth/logout` | — | 204, cookie удаляется | — |
+| GET | `/auth/me` | — | 200 `{id, email}` | 401 |
+| GET | `/profiles` | — | 200 список `{id, name, base, readonly}` (встроенные и свои) | 401 |
+| POST | `/profiles` | JSON `{name, base_id?, rules?}`; нужен `base_id` или `rules` | 201 профиль с полем `diff` | 400 некорректный профиль/нет базы и правил; 404 базовый профиль не найден; 401 |
+| POST | `/profiles/import` | multipart `file` (JSON профиля) | 201 профиль | 400 файл повреждён или больше 1 МБ; 401 |
+| GET | `/profiles/{id}` | — | 200 профиль с `diff` | 404; 401 |
+| PUT | `/profiles/{id}` | JSON `{name?, rules?}` | 200 профиль | 400 некорректный профиль; 403 ГОСТ-профиль; 404; 401 |
+| DELETE | `/profiles/{id}` | — | 204 | 403 ГОСТ-профиль; 404; 401 |
+| GET | `/profiles/{id}/export` | — | 200 JSON-файл профиля | 404; 401 |
+| POST | `/jobs` | multipart: `profile_id`, `mode` (`check` или `format`), и либо `file` (DOCX до 20 МБ), либо `text` | 202 `{id, status: "queued"}` | 400 нет входа/оба входа/большой файл/не DOCX/пустой текст/неверный режим; 404 профиль не найден; 503 очередь недоступна; 401 |
+| GET | `/jobs` | — | 200 список `{id, status, mode, profile_name, created_at, expires_at}` | 401 |
+| GET | `/jobs/{id}` | — | 200 `{id, status, mode, error, report, has_pdf, created_at, expires_at}` | 404; 401 |
+| GET | `/jobs/{id}/docx` | — | 200 DOCX-файл | 404 нет задачи/файла; 409 результат не готов; 410 срок хранения истёк; 401 |
+| GET | `/jobs/{id}/pdf` | — | 200 PDF-предпросмотр | 404 нет задачи/PDF; 409 не готов; 410 истёк; 401 |
+
+Статусы задачи: `queued`, `running`, `done`, `error`, `expired`. При ошибке или
+таймауте задача получает статус `error` и русское сообщение в поле `error`.
+Если PDF собрать не удалось, DOCX всё равно доступен, а в `report.warnings`
+появляется предупреждение.
