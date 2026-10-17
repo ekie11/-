@@ -13,7 +13,6 @@ def settings(tmp_path, monkeypatch):
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'test.db'}")
     monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
     monkeypatch.setenv("STORAGE_DIR", str(storage))
-    monkeypatch.setenv("SECRET_KEY", "test-secret")
     monkeypatch.setenv("COOKIE_SECURE", "false")
     get_settings.cache_clear()
     yield get_settings()

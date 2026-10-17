@@ -17,6 +17,7 @@ router = APIRouter(prefix="/profiles", tags=["profiles"])
 
 FORBIDDEN = "Готовый ГОСТ-профиль нельзя изменить — создайте свой на его основе"
 NOT_FOUND = "Профиль не найден"
+MAX_IMPORT_BYTES = 1024 * 1024
 
 
 class ProfileCreate(BaseModel):
@@ -87,7 +88,10 @@ def create_profile(body: ProfileCreate, db: DbDep, user: UserDep) -> dict:
 @router.post("/import", status_code=201)
 async def import_profile(db: DbDep, user: UserDep, file: Annotated[UploadFile, File()]) -> dict:
     try:
-        raw = json.loads((await file.read()).decode("utf-8"))
+        data = await file.read(MAX_IMPORT_BYTES + 1)
+        if len(data) > MAX_IMPORT_BYTES:
+            raise HTTPException(400, "Файл профиля слишком большой")
+        raw = json.loads(data.decode("utf-8"))
         if not isinstance(raw, dict):
             raise TypeError("ожидался объект JSON")
         raw.update(id="", readonly=False)
@@ -96,7 +100,7 @@ async def import_profile(db: DbDep, user: UserDep, file: Annotated[UploadFile, F
         profile = Profile.model_validate(raw)
         if not 1 <= len(profile.name) <= 200:
             raise ValueError("недопустимое имя профиля")
-    except (ValueError, TypeError, ValidationError) as exc:
+    except (ValueError, TypeError, RecursionError, ValidationError) as exc:
         # json.JSONDecodeError и UnicodeDecodeError — подклассы ValueError
         if isinstance(exc, ValidationError):
             detail = "; ".join(str(e["msg"]).removeprefix("Value error, ") for e in exc.errors())

@@ -65,7 +65,7 @@ def _build_pdf(settings: Settings, directory: Path, docx_path: Path) -> str | No
                 docx_path,
                 directory,
                 soffice=settings.soffice_path,
-                timeout_s=settings.job_timeout_s,
+                timeout_s=max(10, min(60, settings.job_timeout_s // 2)),
             )
         )
     except Exception:  # includes JobTimeoutException: DOCX is saved, so it's just a PDF failure

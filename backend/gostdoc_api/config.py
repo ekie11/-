@@ -18,7 +18,6 @@ class Settings:
     database_url: str
     redis_url: str
     storage_dir: str
-    secret_key: str
     cookie_secure: bool = True
     soffice_path: str = "soffice"
     job_timeout_s: int = 120
@@ -32,7 +31,6 @@ def get_settings() -> Settings:
         database_url=env.get("DATABASE_URL", "sqlite:///./gostdoc.db"),
         redis_url=env.get("REDIS_URL", "redis://localhost:6379/0"),
         storage_dir=env.get("STORAGE_DIR", "./storage"),
-        secret_key=env.get("SECRET_KEY", "dev-secret-change-me"),
         cookie_secure=_bool(env.get("COOKIE_SECURE"), True),
         soffice_path=env.get("SOFFICE_PATH", "soffice"),
         job_timeout_s=int(env.get("JOB_TIMEOUT_S", "120")),

@@ -137,6 +137,20 @@ def test_import_broken_400(client):
     assert r.status_code == 400
 
 
+def test_import_deeply_nested_400(client):
+    reg(client)
+    r = client.post("/profiles/import", files={"file": ("p.json", b"[" * 100000)})
+    assert r.status_code == 400
+    assert r.json()["detail"].startswith("Файл профиля повреждён: ")
+
+
+def test_import_too_large_400(client):
+    reg(client)
+    r = client.post("/profiles/import", files={"file": ("p.json", b" " * (1024 * 1024 + 1))})
+    assert r.status_code == 400
+    assert r.json()["detail"] == "Файл профиля слишком большой"
+
+
 def test_resolve_profile(client, db_session):
     from gostdoc_api.models import User
     from gostdoc_api.profiles_service import resolve_profile

@@ -235,6 +235,7 @@ def test_timeout_in_pdf_keeps_docx(client, queue, monkeypatch):
     jid = upload(client, bad_docx()).json()["id"]
     got = client.get(f"/jobs/{jid}").json()
     assert got["status"] == "done" and got["has_pdf"] is False
+    assert "PDF-предпросмотр недоступен" in got["report"]["warnings"]
     assert client.get(f"/jobs/{jid}/docx").status_code == 200
 
 
@@ -254,3 +255,35 @@ def test_missing_result_file_404_and_enqueue_failure_cleans(client, queue, monke
     before = set(os.listdir(os.path.join(settings.storage_dir, "jobs")))
     assert post(client, data={"text": "abc"}).status_code == 503
     assert set(os.listdir(os.path.join(settings.storage_dir, "jobs"))) == before
+
+
+@pytest.mark.parametrize(("job_timeout", "expected"), [(120, 60), (30, 15), (10, 10), (500, 60)])
+def test_pdf_timeout_is_half_of_job_timeout(client, queue, monkeypatch, job_timeout, expected):
+    from dataclasses import replace
+
+    seen = {}
+
+    def fake(docx_path, out_dir, *, soffice, timeout_s):
+        seen["t"] = timeout_s
+        out = out_dir / (docx_path.stem + ".pdf")
+        out.write_bytes(b"%PDF-1.4")
+        return out
+
+    monkeypatch.setattr(worker, "render_pdf", fake)
+    original = worker.get_settings
+    monkeypatch.setattr(
+        worker, "get_settings", lambda: replace(original(), job_timeout_s=job_timeout)
+    )
+    reg(client)
+    upload(client, bad_docx())
+    assert seen["t"] == expected
+
+
+def test_text_field_over_1mb_is_russian_400(client):
+    reg(client)
+    r = client.post(
+        "/jobs",
+        data={"profile_id": GOST, "mode": "check", "text": "а" * (1024 * 1024 + 10)},
+    )
+    assert r.status_code == 400
+    assert r.json()["detail"] == "Неверные данные формы"
