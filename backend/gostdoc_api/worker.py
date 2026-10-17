@@ -6,6 +6,7 @@ import logging
 import threading
 from pathlib import Path
 
+from rq.timeouts import JobTimeoutException
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -67,7 +68,7 @@ def _build_pdf(settings: Settings, directory: Path, docx_path: Path) -> str | No
                 timeout_s=settings.job_timeout_s,
             )
         )
-    except Exception:
+    except Exception:  # includes JobTimeoutException: DOCX is saved, so it's just a PDF failure
         log.exception("PDF preview failed")
         return None
 
@@ -101,6 +102,9 @@ def run_job(job_id: str) -> None:
             job.report = report
             job.status = "done"
             db.commit()
+        except JobTimeoutException:
+            db.rollback()
+            _set_error(db, job, TIMEOUT_MESSAGE)
         except InputError as exc:
             db.rollback()
             _set_error(db, job, str(exc))

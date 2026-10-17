@@ -211,3 +211,46 @@ def test_enqueue_options(client, deferred_queue):
     job = deferred_queue.fetch_job(jid)
     assert job.timeout == 120 and job.failure_callback
     json.dumps(client.get("/jobs").json())
+
+
+def test_real_timeout_in_process_sets_timeout_error(client, deferred_queue, monkeypatch):
+    reg(client)
+    jid = post(client, data={"text": "Текст"}).json()["id"]
+
+    def slow(*a, **k):
+        raise JobTimeoutException("t")
+
+    monkeypatch.setattr(worker, "process", slow)
+    worker.run_job(jid)
+    got = client.get(f"/jobs/{jid}").json()
+    assert got["status"] == "error" and got["error"] == "Обработка заняла слишком много времени"
+
+
+def test_timeout_in_pdf_keeps_docx(client, queue, monkeypatch):
+    def slow(*a, **k):
+        raise JobTimeoutException("t")
+
+    monkeypatch.setattr(worker, "render_pdf", slow)
+    reg(client)
+    jid = upload(client, bad_docx()).json()["id"]
+    got = client.get(f"/jobs/{jid}").json()
+    assert got["status"] == "done" and got["has_pdf"] is False
+    assert client.get(f"/jobs/{jid}/docx").status_code == 200
+
+
+def test_missing_result_file_404_and_enqueue_failure_cleans(client, queue, monkeypatch, settings):
+    import os
+
+    reg(client)
+    jid = upload(client, bad_docx()).json()["id"]
+    os.remove(client.app.state.sessionmaker().get(Job, jid).output_docx)
+    r = client.get(f"/jobs/{jid}/docx")
+    assert r.status_code == 404 and r.json()["detail"] == "Файл результата не найден"
+
+    def down(*a, **k):
+        raise ConnectionError("redis")
+
+    monkeypatch.setattr(queue, "enqueue", down)
+    before = set(os.listdir(os.path.join(settings.storage_dir, "jobs")))
+    assert post(client, data={"text": "abc"}).status_code == 503
+    assert set(os.listdir(os.path.join(settings.storage_dir, "jobs"))) == before

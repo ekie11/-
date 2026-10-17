@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
@@ -95,6 +96,7 @@ async def create_job(
             on_failure=Callback(on_job_failure),
         )
     except Exception as exc:
+        storage.delete_job_files(settings, job_id)
         job.status = "error"
         job.error = "Сервис обработки временно недоступен, попробуйте позже"
         db.commit()
@@ -152,10 +154,8 @@ def _file(db, user, job_id: str, kind: str) -> FileResponse:
         path, media = j.output_pdf, "application/pdf"
         if path is None:
             raise HTTPException(404, "PDF-предпросмотр недоступен")
-    from pathlib import Path
-
     if not path or not Path(path).is_file():
-        raise HTTPException(404 if kind == "pdf" else 409, "Результат ещё не готов")
+        raise HTTPException(404, "Файл результата не найден")
     return FileResponse(path, media_type=media, filename=f"result.{kind}")
 
 
