@@ -63,3 +63,7 @@ def builtin_profile(profile_id: str) -> Profile:
     if not path.is_file():
         raise ValueError(f"Неизвестный профиль: {profile_id}")
     return load_profile(path)
+
+
+def list_builtin_profiles() -> list[Profile]:
+    return [load_profile(p) for p in sorted(PROFILES_DIR.glob("*.json"))]
