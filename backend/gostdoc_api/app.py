@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 from .config import Settings, get_settings
 from .db import make_engine, make_sessionmaker
 from .routes import auth as auth_routes
+from .routes import jobs as jobs_routes
 from .routes import profiles as profiles_routes
 
 GENERIC_INVALID = "Неверные данные запроса"
@@ -34,6 +35,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(auth_routes.router)
     app.include_router(profiles_routes.router)
+    app.include_router(jobs_routes.router)
 
     @app.exception_handler(RequestValidationError)
     async def _validation_handler(request: Request, exc: RequestValidationError):
