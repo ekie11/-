@@ -20,6 +20,8 @@ dependencies = [
     "redis",
     "python-multipart",
     "psycopg[binary]>=3.1",
+    "httpx",
+    "pypdf",
 ]
 
 [project.optional-dependencies]
