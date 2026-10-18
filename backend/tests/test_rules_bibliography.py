@@ -110,3 +110,19 @@ def test_fix_typography():
     assert out[0] == "1. Москва-Наука, 2020. — М. : Наука, 2020. — 10 с. Текст : электронный"
     assert out[1] == "2. Статья // Журнал . — 2020. С. 10-15 и 10 - 15."
     assert isinstance(d, docx.document.Document)
+
+
+def test_fix_leaves_urls_and_emails():
+    from gostdoc_engine.rules.base import REGISTRY as R
+    src = ["1. URL: http://x.ru/a//b (дата обращения: 01.01.2020)",
+           "2. e-mail:ivan@x.ru и mailto:a@b.ru"]
+    d = build_docx(SEC[:1] + [("source", t) for t in src] + [("source", "3. Текст:электронный")])
+    R[KEY]().fix(analyze(d), builtin_profile("gost-7.32-2017").rules[KEY])
+    assert [p.text for p in d.paragraphs[1:]] == src[:2] + ["3. Текст : электронный"]
+
+
+def test_citation_number_limits_and_roles():
+    from gostdoc_engine.bibliography import find_citations
+    m = analyze(build_docx([("p", "В [2019] и [0] году."),
+                            ("table_caption", "Таблица 1 - Данные [1]"), *SEC]))
+    assert find_citations(m) == []

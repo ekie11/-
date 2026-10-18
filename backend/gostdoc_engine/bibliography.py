@@ -77,7 +77,7 @@ def check_entry(entry: Entry) -> list[str]:
 
 
 _CITE = re.compile(r"\[(\d[^\[\]]*)\]")
-_CITE_PART = re.compile(r"\s*(\d{1,4})(?:\s*[–-]\s*(\d{1,4}))?\s*")
+_CITE_PART = re.compile(r"\s*(\d{1,3})(?:\s*[–-]\s*(\d{1,3}))?\s*")
 MAX_RANGE = 50
 
 
@@ -88,6 +88,8 @@ def _cite_numbers(body: str) -> list[int]:
         if not m:
             continue
         lo = int(m.group(1))
+        if lo < 1:
+            continue
         if m.group(2) is None:
             nums.append(lo)
             continue
@@ -105,7 +107,8 @@ def find_citations(model: DocModel) -> list[tuple[int, list[int]]]:
     skip = {p.index for p in section}
     out = []
     for p in model.paragraphs:
-        if p.index in skip or p.role in (Role.TOC, Role.EMPTY):
+        if p.index in skip or p.role in (Role.TOC, Role.EMPTY, Role.TITLE_PAGE,
+                          Role.FIGURE_CAPTION, Role.TABLE_CAPTION):
             continue
         nums = [n for m in _CITE.finditer(p.text) for n in _cite_numbers(m.group(1))]
         if nums:
@@ -134,6 +137,9 @@ def _dash_repl(m: re.Match) -> str | None:
     return "—"
 
 
+_MASK = re.compile(r"\bhttps?://\S+|\b\S+@\S+\.\S+|mailto:\S+")
+
+
 def fix_paragraph_typography(par) -> None:
     """Пробелы и тире между элементами записи; работает сквозь прогоны."""
     ts = par._p.xpath(".//w:t")
@@ -143,13 +149,16 @@ def fix_paragraph_typography(par) -> None:
         (re.compile(r"(?<=\.)[-–](?=\s)"), lambda m: " —"),
         (re.compile(r"\s+—\s*|\s*—\s+"), lambda m: " — "),
         (re.compile(r"(?<![:/])\s*//(?!/)\s*"), lambda m: " // "),
-        (re.compile(r"(?<=\S)(?<!URL)(?: :|:)(?=[^\W\d_])"), lambda m: " : "),
+        (re.compile(r"(?<=[а-яёА-ЯЁ.])(?: :|:)(?=[а-яёА-ЯЁ])"), lambda m: " : "),
         (re.compile(r" {2,}"), lambda m: " "),
     ]
-    for rx, fn in passes:
+    for n, (rx, fn) in enumerate(passes):
         full = "".join(t.text or "" for t in ts)
+        masked = [m.span() for m in _MASK.finditer(full)] if 4 <= n <= 5 else []
         edits = []
         for m in rx.finditer(full):
+            if any(m.start() < b and a < m.end() for a, b in masked):
+                continue
             repl = fn(m)
             if repl is not None and repl != m.group(0):
                 edits.append((m.start(), m.end(), repl))
