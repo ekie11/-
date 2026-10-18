@@ -6,6 +6,7 @@ import logging
 import threading
 from pathlib import Path
 
+from docx import Document
 from rq.timeouts import JobTimeoutException
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -14,10 +15,12 @@ from gostdoc_engine.importer import InputError
 from gostdoc_engine.pipeline import process
 from gostdoc_engine.profile import Profile
 from gostdoc_engine.textguard import TextChangedError
+from gostdoc_engine.toc import has_toc_field, set_page_numbers, set_update_fields
 
 from . import storage
 from .config import Settings, get_settings
 from .db import make_engine, make_sessionmaker
+from .lo_pages import page_numbers_and_pdf
 from .models import Job
 from .pdf import render_pdf
 
@@ -29,6 +32,7 @@ TEXT_CHANGED_ERROR = (
 )
 TIMEOUT_MESSAGE = "Обработка заняла слишком много времени"
 PDF_WARNING = "PDF-предпросмотр недоступен"
+TOC_WARNING = "Номера страниц в оглавлении обновятся при открытии в Word"
 
 _engines: dict[str, Engine] = {}
 _lock = threading.Lock()
@@ -57,6 +61,43 @@ def mark_error_if_open(job_id: str, message: str | None = None) -> None:
         _set_error(db, job, message or GENERIC_ERROR)
 
 
+def _pdf_timeout(settings: Settings) -> int:
+    return max(10, min(60, settings.job_timeout_s // 2))
+
+
+def _toc_pages_and_pdf(settings: Settings, docx_path: Path) -> tuple[str | None, str | None]:
+    """Вписывает номера страниц в оглавление и строит PDF; возвращает (pdf, предупреждение).
+
+    Только если в DOCX есть поле TOC. Ошибка LibreOffice → updateFields и предупреждение,
+    PDF в этом случае строит вызывающий обычным способом.
+    """
+    try:
+        doc = Document(str(docx_path))
+        if not has_toc_field(doc):
+            return None, None
+    except Exception:
+        log.exception("TOC check failed")
+        return None, None
+    out_pdf = docx_path.with_suffix(".pdf")
+    try:
+        pages = page_numbers_and_pdf(
+            docx_path, out_pdf, soffice=settings.soffice_path, timeout_s=_pdf_timeout(settings)
+        )
+        set_page_numbers(doc, pages)
+        doc.save(str(docx_path))
+        return str(out_pdf), None
+    except Exception:  # в т.ч. JobTimeoutException: DOCX цел, просто без номеров
+        log.exception("TOC page numbers failed")
+        out_pdf.unlink(missing_ok=True)
+        try:
+            doc = Document(str(docx_path))
+            set_update_fields(doc)
+            doc.save(str(docx_path))
+        except Exception:
+            log.exception("set_update_fields failed")
+        return None, TOC_WARNING
+
+
 def _build_pdf(settings: Settings, directory: Path, docx_path: Path) -> str | None:
     """PDF необязателен: любая ошибка даёт None, DOCX не теряется."""
     try:
@@ -65,7 +106,7 @@ def _build_pdf(settings: Settings, directory: Path, docx_path: Path) -> str | No
                 docx_path,
                 directory,
                 soffice=settings.soffice_path,
-                timeout_s=max(10, min(60, settings.job_timeout_s // 2)),
+                timeout_s=_pdf_timeout(settings),
             )
         )
     except Exception:  # includes JobTimeoutException: DOCX is saved, so it's just a PDF failure
@@ -94,7 +135,13 @@ def run_job(job_id: str) -> None:
             docx_path = directory / "result.docx"
             storage.write(docx_path, result.docx_bytes)
             report = dict(result.report)
-            pdf = _build_pdf(settings, directory, docx_path)
+            pdf = None
+            if job.mode == "format":
+                pdf, toc_warning = _toc_pages_and_pdf(settings, docx_path)
+                if toc_warning:
+                    report["warnings"] = [*report.get("warnings", []), toc_warning]
+            if pdf is None:
+                pdf = _build_pdf(settings, directory, docx_path)
             if pdf is None:
                 report["warnings"] = [*report.get("warnings", []), PDF_WARNING]
             job.output_docx = str(docx_path)
