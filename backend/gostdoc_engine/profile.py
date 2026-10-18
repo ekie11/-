@@ -25,6 +25,7 @@ KNOWN_RULE_KEYS: frozenset[str] = frozenset(
     }
 )
 
+DEFAULT_PROFILE_ID = "gost-7.32-2017"
 PROFILES_DIR = Path(__file__).resolve().parent.parent / "profiles"
 
 
@@ -66,4 +67,6 @@ def builtin_profile(profile_id: str) -> Profile:
 
 
 def list_builtin_profiles() -> list[Profile]:
-    return [load_profile(p) for p in sorted(PROFILES_DIR.glob("*.json"))]
+    profiles = [load_profile(p) for p in sorted(PROFILES_DIR.glob("*.json"))]
+    # ГОСТ 7.32-2017 — профиль по умолчанию, всегда первый
+    return sorted(profiles, key=lambda p: p.id != DEFAULT_PROFILE_ID)

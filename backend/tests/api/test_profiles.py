@@ -116,7 +116,7 @@ def test_other_user_404(client):
     assert client.put(f"/profiles/{pid}", json={"name": "x"}).status_code == 404
     assert client.delete(f"/profiles/{pid}").status_code == 404
     assert client.get(f"/profiles/{pid}/export").status_code == 404
-    assert [p["id"] for p in client.get("/profiles").json()] == [GOST]
+    assert [p["id"] for p in client.get("/profiles").json()] == [GOST, "espd-19.106-78", "gost-2.105-2019"]
 
 
 def test_export_import_roundtrip(client):
