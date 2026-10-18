@@ -293,3 +293,13 @@ def test_invalid_anonymous_posts_create_no_guest(client, queue, db_session):  # 
 def test_valid_anonymous_post_creates_one_guest(client, queue, db_session):  # noqa: F811
     assert gpost(client).status_code == 202
     assert db_session.query(GuestSession).count() == 1
+
+
+def test_guest_lists_only_builtin_profiles(client, queue):  # noqa: F811
+    assert gpost(client).status_code == 202
+    assert client.cookies.get("guest")
+    r = client.get("/profiles")
+    assert r.status_code == 200
+    items = r.json()
+    assert items and all(i["readonly"] for i in items)
+    assert client.get(f"/profiles/{GOST}").status_code == 200

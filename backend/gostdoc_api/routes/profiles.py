@@ -5,13 +5,14 @@ from __future__ import annotations
 import json
 from typing import Annotated
 
-from fastapi import APIRouter, File, HTTPException, Response, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile
 from pydantic import BaseModel, Field, ValidationError
 
 from gostdoc_engine.profile import Profile
 
 from .. import profiles_service as svc
-from ..auth import DbDep, UserDep
+from ..auth import COOKIE_NAME, DbDep, UserDep, _find_session
+from ..models import User
 
 router = APIRouter(prefix="/profiles", tags=["profiles"])
 
@@ -51,11 +52,21 @@ def _own_row(db, user, profile_id):
     return row
 
 
+def _optional_user(request: Request, db: DbDep) -> User | None:
+    """Пользователь по сессии или None (гость/аноним); гостя не создаёт."""
+    row = _find_session(db, request.cookies.get(COOKIE_NAME))
+    return db.get(User, row.user_id) if row else None
+
+
+OptionalUserDep = Annotated[User | None, Depends(_optional_user)]
+
+
 @router.get("")
-def list_profiles(db: DbDep, user: UserDep) -> list[dict]:
+def list_profiles(db: DbDep, user: OptionalUserDep) -> list[dict]:
     from gostdoc_engine.profile import list_builtin_profiles
 
-    return [_summary(p) for p in list_builtin_profiles() + svc.list_own(db, user)]
+    own = svc.list_own(db, user) if user is not None else []
+    return [_summary(p) for p in list_builtin_profiles() + own]
 
 
 @router.post("", status_code=201)
@@ -111,7 +122,7 @@ async def import_profile(db: DbDep, user: UserDep, file: Annotated[UploadFile, F
 
 
 @router.get("/{profile_id}")
-def get_profile(profile_id: str, db: DbDep, user: UserDep) -> dict:
+def get_profile(profile_id: str, db: DbDep, user: OptionalUserDep) -> dict:
     try:
         return _full(svc.resolve_profile(db, user, profile_id))
     except LookupError:

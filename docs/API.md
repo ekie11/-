@@ -86,10 +86,10 @@ IP клиента — адрес подключения. `X-Forwarded-For` уч�
 | POST | `/auth/login` | JSON `{email, password}` | 200 `{id, email}`, ставит cookie | 401 неверный email или пароль |
 | POST | `/auth/logout` | — | 204, cookie удаляется | — |
 | GET | `/auth/me` | — | 200 `{id, email}` | 401 |
-| GET | `/profiles` | — | 200 список `{id, name, base, readonly}` (встроенные и свои) | 401 |
+| GET | `/profiles` | — | 200 список `{id, name, base, readonly}` (встроенные и свои; без сессии и гостю — только встроенные) | — |
 | POST | `/profiles` | JSON `{name, base_id?, rules?}`; нужен `base_id` или `rules` | 201 профиль с полем `diff` | 400 некорректный профиль/нет базы и правил; 404 базовый профиль не найден; 401 |
 | POST | `/profiles/import` | multipart `file` (JSON профиля) | 201 профиль | 400 файл повреждён или больше 1 МБ; 401 |
-| GET | `/profiles/{id}` | — | 200 профиль с `diff` | 404; 401 |
+| GET | `/profiles/{id}` | — | 200 профиль с `diff` (встроенный доступен без сессии) | 404 |
 | PUT | `/profiles/{id}` | JSON `{name?, rules?}` | 200 профиль | 400 некорректный профиль; 403 ГОСТ-профиль; 404; 401 |
 | DELETE | `/profiles/{id}` | — | 204 | 403 ГОСТ-профиль; 404; 401 |
 | GET | `/profiles/{id}/export` | — | 200 JSON-файл профиля | 404; 401 |

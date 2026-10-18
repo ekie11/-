@@ -17,7 +17,24 @@ def make_own(client, name="Мой"):
 
 
 def test_requires_auth(client):
-    assert client.get("/profiles").status_code == 401
+    assert client.delete(f"/profiles/{GOST}").status_code == 401
+    assert client.get(f"/profiles/{GOST}/export").status_code == 401
+    assert client.post("/profiles", json={"base_id": GOST, "name": "x"}).status_code == 401
+    assert client.get("/profiles/unknown-id").status_code == 404
+
+
+def test_anonymous_lists_only_builtin(client):
+    r = client.get("/profiles")
+    assert r.status_code == 200
+    items = r.json()
+    assert items and all(i["readonly"] for i in items)
+    assert items[0]["id"] == GOST
+
+
+def test_anonymous_get_builtin_public(client):
+    r = client.get(f"/profiles/{GOST}")
+    assert r.status_code == 200 and r.json()["readonly"] is True
+    assert "guest" not in client.cookies
 
 
 def test_list_gost_first(client):
