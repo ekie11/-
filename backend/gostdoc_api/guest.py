@@ -51,7 +51,7 @@ def _set_guest_cookie(response: Response, token: str, secure: bool) -> None:
     )
 
 
-def _owner(request: Request, response: Response, db: Session, create: bool) -> Owner:
+def _owner(request: Request, db: Session, create: bool) -> Owner:
     row = _find_session(db, request.cookies.get(COOKIE_NAME))
     user = db.get(User, row.user_id) if row else None
     if user is not None:
@@ -61,40 +61,50 @@ def _owner(request: Request, response: Response, db: Session, create: bool) -> O
         return Owner(None, guest)
     if not create:
         raise HTTPException(status_code=401, detail="Нужно войти")
+    return Owner(None, None)
+
+
+def mint_guest(db: Session, request: Request, response: Response) -> GuestSession:
+    """Создаёт гостя и ставит cookie; вызывать только после всех проверок запроса."""
     token = secrets.token_urlsafe(32)
     now = datetime.now(UTC)
     guest = GuestSession(
-        token_hash=_token_hash(token), created_at=now, expires_at=now + timedelta(hours=GUEST_HOURS)
+        token_hash=_token_hash(token),
+        created_at=now,
+        expires_at=now + timedelta(hours=GUEST_HOURS),
     )
     db.add(guest)
     db.commit()
     _set_guest_cookie(response, token, request.app.state.settings.cookie_secure)
-    return Owner(None, guest)
+    return guest
 
 
-def owner_or_guest(request: Request, response: Response, db: DbDep) -> Owner:
+def owner_or_guest(request: Request, db: DbDep) -> Owner:
     """Для чтения: пользователь или существующий гость, иначе 401."""
-    return _owner(request, response, db, create=False)
+    return _owner(request, db, create=False)
 
 
-def owner_or_new_guest(request: Request, response: Response, db: DbDep) -> Owner:
-    """Для POST /jobs: при отсутствии владельца создаёт гостя и ставит cookie."""
-    return _owner(request, response, db, create=True)
+def owner_or_new_guest(request: Request, db: DbDep) -> Owner:
+    """Для POST /jobs: без владельца возвращает Owner(None, None), гость создаётся позже."""
+    return _owner(request, db, create=True)
 
 
 OwnerDep = Annotated[Owner, Depends(owner_or_guest)]
 NewOwnerDep = Annotated[Owner, Depends(owner_or_new_guest)]
 
 
-def check_guest_limits(db: Session, guest: GuestSession, ip: str, now: datetime) -> None:
+def check_guest_limits(db: Session, guest: GuestSession | None, ip: str, now: datetime) -> None:
+    # Подсчёт и последующая вставка задачи не атомарны: при гонке возможны
+    # несколько лишних задач сверх лимита, это допустимо.
     since = now - timedelta(hours=24)
-    per_guest = db.scalar(
-        select(func.count())
-        .select_from(Job)
-        .where(Job.guest_id == guest.id, Job.created_at > since)
-    )
-    if per_guest >= GUEST_JOB_LIMIT:
-        raise HTTPException(status_code=429, detail=LIMIT_MESSAGE)
+    if guest is not None:
+        per_guest = db.scalar(
+            select(func.count())
+            .select_from(Job)
+            .where(Job.guest_id == guest.id, Job.created_at > since)
+        )
+        if per_guest >= GUEST_JOB_LIMIT:
+            raise HTTPException(status_code=429, detail=LIMIT_MESSAGE)
     per_ip = db.scalar(
         select(func.count())
         .select_from(Job)

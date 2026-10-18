@@ -178,9 +178,15 @@ def test_cleanup_removes_expired_guests(client, queue, db_session, settings):  #
     assert db_session.query(GuestSession).count() == 0
 
 
+class Hdrs(dict):
+    def getlist(self, key):
+        v = self.get(key)
+        return [] if v is None else (v if isinstance(v, list) else [v])
+
+
 def req(peer, xff=None):
     headers = {"x-forwarded-for": xff} if xff else {}
-    return SimpleNamespace(client=SimpleNamespace(host=peer), headers=headers)
+    return SimpleNamespace(client=SimpleNamespace(host=peer), headers=Hdrs(headers))
 
 
 def test_client_ip_rules():
@@ -257,3 +263,33 @@ def test_xff_used_from_trusted_peer(settings, redis_conn):  # noqa: F811
             headers={"X-Forwarded-For": "9.9.9.9"},
         )
         assert blocked.status_code == 429
+
+
+def test_client_ip_multiple_xff_lines():
+    trusted = ("10.0.0.0/8",)
+    r = req("10.0.0.1", ["6.6.6.6", "9.9.9.9, 10.0.0.2"])
+    assert client_ip(r, trusted) == "9.9.9.9"
+
+
+def test_invalid_anonymous_posts_create_no_guest(client, queue, db_session):  # noqa: F811
+    r = post(client, data={"text": "", "mode": "format"})
+    assert r.status_code == 400
+    r = post(client, data={"text": "Т.", "mode": "format", "profile_id": "nope"})
+    assert r.status_code == 404
+    assert client.post("/jobs", data={"mode": "format"}).status_code in (400, 422)
+    assert db_session.query(GuestSession).count() == 0
+    assert "guest" not in client.cookies
+    for _ in range(10):
+        client.cookies.clear()
+        assert gpost(client).status_code == 202
+    n = db_session.query(GuestSession).count()
+    client.cookies.clear()
+    r = gpost(client)
+    assert r.status_code == 429
+    assert "set-cookie" not in r.headers and "guest" not in client.cookies
+    assert db_session.query(GuestSession).count() == n
+
+
+def test_valid_anonymous_post_creates_one_guest(client, queue, db_session):  # noqa: F811
+    assert gpost(client).status_code == 202
+    assert db_session.query(GuestSession).count() == 1

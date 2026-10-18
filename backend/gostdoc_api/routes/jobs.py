@@ -7,7 +7,16 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    Response,
+    UploadFile,
+)
 from fastapi.responses import FileResponse
 from rq import Callback, Queue
 from sqlalchemy import select
@@ -17,7 +26,7 @@ from gostdoc_engine.importer import MAX_BYTES, InputError, load_docx, text_to_do
 from .. import storage
 from ..auth import DbDep
 from ..client_ip import client_ip
-from ..guest import GUEST_HOURS, NewOwnerDep, Owner, OwnerDep, check_guest_limits
+from ..guest import GUEST_HOURS, NewOwnerDep, Owner, OwnerDep, check_guest_limits, mint_guest
 from ..models import Job
 from ..profiles_service import resolve_profile
 from ..queue import get_queue, on_job_failure
@@ -44,6 +53,7 @@ async def _read_limited(file: UploadFile) -> bytes:
 @router.post("", status_code=202)
 async def create_job(
     request: Request,
+    response: Response,
     db: DbDep,
     owner: NewOwnerDep,
     queue: Annotated[Queue, Depends(get_queue)],
@@ -54,9 +64,7 @@ async def create_job(
 ) -> dict:
     settings = request.app.state.settings
     user, guest = owner.user, owner.guest
-    ip = client_ip(request, settings.trusted_proxies) if guest else None
-    if guest:
-        check_guest_limits(db, guest, ip, datetime.now(UTC))
+    ip = client_ip(request, settings.trusted_proxies) if user is None else None
     has_file = file is not None and bool(file.filename)
     if has_file == (text is not None):
         raise HTTPException(400, NEED_INPUT)
@@ -74,6 +82,10 @@ async def create_job(
         profile = resolve_profile(db, user, profile_id)
     except LookupError as exc:
         raise HTTPException(404, "Профиль не найден") from exc
+    if user is None:
+        check_guest_limits(db, guest, ip, datetime.now(UTC))
+        if guest is None:
+            guest = mint_guest(db, request, response)
 
     job_id = str(uuid.uuid4())
     input_path = storage.job_dir(settings, job_id) / name

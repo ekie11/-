@@ -40,7 +40,7 @@ def client_ip(request: Request, trusted: tuple[str, ...]) -> str:
     peer_addr = _parse(peer)
     if not nets or peer_addr is None or not _in(peer_addr, nets):
         return peer
-    header = request.headers.get("x-forwarded-for")
+    header = ",".join(request.headers.getlist("x-forwarded-for"))
     if not header:
         return peer
     for raw in reversed(header.split(",")):
