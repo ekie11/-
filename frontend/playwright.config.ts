@@ -27,6 +27,8 @@ export default defineConfig({
     {
       command: "bash e2e/start-stack.sh",
       url: "http://127.0.0.1:8000/health",
+      stdout: "pipe",
+      stderr: "pipe",
       reuseExistingServer: !process.env.CI,
       timeout: 60_000,
     },
@@ -34,6 +36,8 @@ export default defineConfig({
       command: "npm run build && npm run start -- -p 3000",
       url: "http://127.0.0.1:3000",
       env: { API_URL: "http://127.0.0.1:8000" },
+      stdout: "pipe",
+      stderr: "pipe",
       reuseExistingServer: !process.env.CI,
       timeout: 240_000,
     },

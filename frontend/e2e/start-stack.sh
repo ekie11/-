@@ -41,7 +41,23 @@ export SOFFICE_PATH="$TMP/soffice"
 export JOB_TIMEOUT_S=60
 
 redis-server --port "$REDIS_PORT" --bind 127.0.0.1 --save "" --appendonly no --dir "$TMP" >"$TMP/redis.log" 2>&1 &
-PIDS+=("$!")
+REDIS_PID=$!
+PIDS+=("$REDIS_PID")
+
+ready=0
+for _ in $(seq 1 100); do
+  kill -0 "$REDIS_PID" 2>/dev/null || break
+  if "$PYTHON" -c 'import socket,sys; socket.create_connection(("127.0.0.1", int(sys.argv[1])), 0.2).close()' "$REDIS_PORT" 2>/dev/null; then
+    ready=1
+    break
+  fi
+  sleep 0.1
+done
+if [ "$ready" != 1 ]; then
+  echo "Redis не запустился на порту $REDIS_PORT:" >&2
+  cat "$TMP/redis.log" >&2
+  exit 1
+fi
 
 cd "$ROOT/backend"
 "$PYTHON" -m gostdoc_api migrate
@@ -50,4 +66,8 @@ PIDS+=("$!")
 "$PYTHON" -m gostdoc_api worker &
 PIDS+=("$!")
 
-wait
+# Выходим, как только любой из процессов умер (cleanup уберёт остальные).
+wait -n || true
+echo "Один из процессов стека завершился, останавливаем всё" >&2
+cat "$TMP/redis.log" >&2 || true
+exit 1
