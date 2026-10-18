@@ -84,6 +84,30 @@ describe("ProfileEditor", () => {
     expect(body.rules["page.margins"].value.left_mm).toBe(50);
   });
 
+  it("число ниже минимума поднимается до него", async () => {
+    render(<ProfileEditor id="own" />);
+    const left = await screen.findByLabelText("Левое поле");
+    await userEvent.clear(left);
+    await userEvent.type(left, "-5");
+    await userEvent.tab();
+    expect((screen.getByLabelText("Левое поле") as HTMLInputElement).value).toBe("0");
+  });
+
+  it("неподдерживаемое сохранённое значение не скрывается", async () => {
+    apiFetch.mockImplementation(async (path: string) => {
+      if (path === "/profiles/own") {
+        const p = structuredClone(OWN) as typeof OWN & { rules: Record<string, unknown> };
+        p.rules["captions.figure"] = R({ pattern: "Рисунок {n} — {title}", position: "above", align: "center" });
+        return p;
+      }
+      return structuredClone(GOST);
+    });
+    render(<ProfileEditor id="own" />);
+    await userEvent.click(await screen.findByRole("button", { name: /Рисунки и таблицы/ }));
+    expect(screen.getByText("above")).toBeInTheDocument();
+    expect(screen.getByText(/Это значение не поддерживается — будет использовано: под рисунком/)).toBeInTheDocument();
+  });
+
   it("правило без описания показывается в «Другом»", async () => {
     render(<ProfileEditor id="own" />);
     await userEvent.click(await screen.findByRole("button", { name: /Другое/ }));
