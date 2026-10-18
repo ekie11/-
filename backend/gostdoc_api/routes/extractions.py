@@ -33,6 +33,7 @@ USER_LIMIT = "Лимит извлечений на сегодня исчерпа
 GLOBAL_LIMIT = "Сервис перегружен, попробуйте завтра"
 QUEUE_DOWN = "Сервис обработки временно недоступен, попробуйте позже"
 EXTRACTION_TIMEOUT_S = 300
+FAILURE_TTL_S = 60
 
 UserDep = Annotated[User, Depends(current_user)]
 
@@ -113,13 +114,17 @@ async def create_extraction(
     )
     db.add(row)
     db.commit()
+    timeout = max(EXTRACTION_TIMEOUT_S, settings.llm_timeout_s * 3)
     try:
         queue.enqueue(
             run_extraction_job,
             row.id,
             guideline,
             job_id=row.id,
-            job_timeout=max(EXTRACTION_TIMEOUT_S, settings.llm_timeout_s * 3),
+            job_timeout=timeout,
+            ttl=timeout,  # не выполненная вовремя задача удаляется из очереди вместе с текстом
+            result_ttl=0,  # текст методички не держим в Redis после выполнения
+            failure_ttl=FAILURE_TTL_S,
             on_failure=Callback(on_extraction_failure),
         )
     except Exception as exc:

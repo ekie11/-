@@ -241,3 +241,19 @@ def test_cleanup_removes_old(client, queue, db_session, settings):
     cleanup_expired(db_session, settings, datetime.now(UTC))
     ids = {e.id for e in db_session.query(Extraction)}
     assert ids == {"new"}
+
+
+def test_enqueue_does_not_keep_text_in_redis(client, queue, monkeypatch):
+    calls = []
+    orig = queue.enqueue
+
+    def spy(*a, **kw):
+        calls.append(kw)
+        return orig(*a, **kw)
+
+    monkeypatch.setattr(queue, "enqueue", spy)
+    reg(client)
+    make(client)
+    kw = calls[0]
+    assert kw["result_ttl"] == 0 and kw["failure_ttl"] == 60
+    assert kw["ttl"] == kw["job_timeout"]
