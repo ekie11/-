@@ -9,8 +9,8 @@ ANSWER = {
         {
             "rule": "page.margins",
             "path": "left_mm",
-            "value": 30,
-            "quote": "левое — 30 мм",
+            "value": 25,
+            "quote": "левое — 25 мм",
         }
     ],
     "unsupported": [],

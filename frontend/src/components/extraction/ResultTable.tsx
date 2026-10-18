@@ -35,6 +35,11 @@ function baseValue(rules: RuleConfig, item: FoundItem): unknown {
   return rule?.value?.[item.path];
 }
 
+export function sameValue(a: unknown, b: unknown): boolean {
+  if (typeof a === "number" && typeof b === "number") return a === b;
+  return typeof a === typeof b && a === b;
+}
+
 function cite(quote: string, page: number | null) {
   return page ? `«${quote}» (стр. ${page})` : `«${quote}»`;
 }
@@ -95,7 +100,7 @@ export function ResultTable(p: Props) {
             {found.map((it, i) => {
               const f = p.fields.find((x) => x.rule === it.rule && x.path === it.path);
               const bv = baseValue(p.baseRules, it);
-              const same = bv !== undefined && String(bv) === String(it.value);
+              const same = bv !== undefined && sameValue(bv, it.value);
               return (
                 <tr key={i} className={`border-b border-line align-top ${same ? "opacity-50" : ""}`}>
                   <td className="py-2 pr-2">

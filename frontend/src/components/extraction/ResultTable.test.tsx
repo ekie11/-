@@ -79,3 +79,26 @@ describe("ResultTable", () => {
     expect(screen.queryByRole("button", { name: "Создать профиль" })).toBeNull();
   });
 });
+
+describe("ResultTable: форматы значений", () => {
+  it("bool и число", () => {
+    const f: FieldDef[] = [
+      { rule: "a", path: "b", group: "page", label: "Флаг", kind: "bool" },
+      { rule: "a", path: "n", group: "page", label: "Размер", kind: "number", unit: "пт" },
+    ];
+    render(
+      <ResultTable
+        result={{ found: [
+          { rule: "a", path: "b", value: true, quote: "q", page: null },
+          { rule: "a", path: "n", value: 14, quote: "q2", page: null },
+        ], unsupported: [], rejected_count: 0 }}
+        fields={f} groups={[]} baseRules={{ a: { value: { b: false, n: 12 } } }}
+        accepted={[0, 1]} onAccepted={() => {}} name="x" onName={() => {}} onCreate={() => {}} onBack={() => {}} busy={false}
+      />,
+    );
+    expect(screen.getByText("да")).toBeInTheDocument();
+    expect(screen.getByText("нет")).toBeInTheDocument();
+    expect(screen.getByText("14 пт")).toBeInTheDocument();
+    expect(screen.getByText("12 пт")).toBeInTheDocument();
+  });
+});

@@ -10,6 +10,7 @@ import { ResultTable } from "./ResultTable";
 import { UploadStep, type GuidelineTab } from "./UploadStep";
 
 export const POLL_MS = 2000;
+export const MAX_NET_FAILS = 5;
 const MAX_FILE = 20 * 1024 * 1024;
 const DEFAULT_BASE = "gost-7.32-2017";
 
@@ -49,10 +50,12 @@ export function FromGuideline() {
     if (!extractionId) return;
     let alive = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let fails = 0;
     async function tick() {
       try {
         const e = await api.getExtraction(extractionId!);
         if (!alive) return;
+        fails = 0;
         if (e.status === "done" && e.result) {
           setAccepted(e.result.found.map((_, i) => i));
           setName(e.source_name ? e.source_name.replace(/\.[^.]+$/, "") : "Профиль из методички");
@@ -65,10 +68,10 @@ export function FromGuideline() {
         if (e.status === "queued" || e.status === "running") timer = setTimeout(tick, POLL_MS);
       } catch (e) {
         if (!alive) return;
-        if (!(e instanceof ApiError) || e.status === 0 || e.status >= 500) {
+        if ((!(e instanceof ApiError) || e.status === 0 || e.status >= 500) && ++fails < MAX_NET_FAILS) {
           timer = setTimeout(tick, POLL_MS);
         } else {
-          setError(e.detail);
+          setError(msg(e, "Не удалось получить результат"));
           setExtractionId(null);
         }
       }
