@@ -23,16 +23,7 @@ test("файл ~19 МБ доходит до API через прокси Next", a
 
 test("файл ~22 МБ отклоняется самим API с 413", async ({ request }) => {
   // 21.5 MiB: выше лимита API (21 MiB), но с multipart-обвязкой < 22 MiB, т.е. Next пересылает тело целиком.
-  // API отвечает 413 по Content-Length, не дочитав тело, поэтому клиент иногда ловит ECONNRESET на записи: повторяем.
-  let res: Awaited<ReturnType<typeof upload>> | undefined;
-  for (let attempt = 0; attempt < 5 && !res; attempt++) {
-    try {
-      res = await upload(request, Math.round(21.5 * MIB));
-    } catch (e) {
-      if (!String(e).includes("ECONNRESET")) throw e;
-    }
-  }
-  if (!res) throw new Error("ECONNRESET на всех попытках");
+  const res = await upload(request, Math.round(21.5 * MIB));
   expect(res.status()).toBe(413);
   expect(res.headers()["content-type"]).toContain("application/json");
   const body = await res.json();

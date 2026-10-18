@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import re
+import time
 
 from fastapi import FastAPI, Request
 from fastapi.exception_handlers import http_exception_handler
@@ -25,6 +27,8 @@ GENERIC_INVALID = "Неверные данные запроса"
 FORM_INVALID = "Неверные данные формы"
 TOO_BIG = "Файл слишком большой — максимум 20 МБ"
 MAX_BODY = 21 * 1024 * 1024  # 20 МБ файла + запас на multipart-обвязку
+DRAIN_MAX_BYTES = 32 * 1024 * 1024  # сколько всего читаем из тела перед отказом
+DRAIN_MAX_SECONDS = 10.0
 _CYRILLIC = re.compile("[а-яёА-ЯЁ]")
 
 
@@ -50,7 +54,7 @@ class BodyLimitMiddleware:
                 except ValueError:
                     too_big = False
                 if too_big:
-                    await self._reject(scope, receive, send)
+                    await self._reject(scope, receive, send, 0)
                     return
         received = 0
         started = False
@@ -75,9 +79,27 @@ class BodyLimitMiddleware:
         except _BodyTooLarge:
             if started:
                 raise
-            await self._reject(scope, receive, send)
+            await self._reject(scope, receive, send, received)
 
-    async def _reject(self, scope: Scope, receive: Receive, send: Send) -> None:
+    async def _drain(self, receive: Receive, received: int) -> None:
+        """Дочитывает и выбрасывает тело, чтобы клиент не получил ECONNRESET при записи."""
+        deadline = time.monotonic() + DRAIN_MAX_SECONDS
+        try:
+            while received < DRAIN_MAX_BYTES:
+                left = deadline - time.monotonic()
+                if left <= 0:
+                    return
+                message = await asyncio.wait_for(receive(), timeout=left)
+                if message["type"] != "http.request":
+                    return
+                received += len(message.get("body", b""))
+                if not message.get("more_body", False):
+                    return
+        except (TimeoutError, OSError):
+            return
+
+    async def _reject(self, scope: Scope, receive: Receive, send: Send, received: int) -> None:
+        await self._drain(receive, received)
         response = JSONResponse(status_code=413, content={"detail": TOO_BIG})
         await response(scope, receive, send)
 

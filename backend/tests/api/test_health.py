@@ -12,9 +12,7 @@ def test_settings_defaults(settings):
 
 
 def test_body_over_cap_413_by_content_length(client):
-    r = client.post(
-        "/jobs", content=b"x", headers={"Content-Length": str(21 * 1024 * 1024 + 1)}
-    )
+    r = client.post("/jobs", content=b"x", headers={"Content-Length": str(21 * 1024 * 1024 + 1)})
     assert r.status_code == 413
     assert r.json() == {"detail": "Файл слишком большой — максимум 20 МБ"}
 
@@ -39,6 +37,47 @@ def test_chunked_body_over_cap_413(client):
     )
     assert r.status_code == 413
     assert r.json()["detail"] == "Файл слишком большой — максимум 20 МБ"
+
+
+def test_oversized_body_is_drained_before_413():
+    import asyncio
+    import json
+
+    from gostdoc_api.app import BodyLimitMiddleware
+
+    async def inner(scope, receive, send):  # не должен вызываться из-за Content-Length
+        raise AssertionError
+
+    chunks = [b"x" * (1024 * 1024)] * 22
+    consumed = 0
+    events = []
+
+    async def receive():
+        nonlocal consumed
+        if consumed < len(chunks):
+            consumed += 1
+            return {
+                "type": "http.request",
+                "body": chunks[consumed - 1],
+                "more_body": consumed < len(chunks),
+            }
+        return {"type": "http.disconnect"}
+
+    async def send(message):
+        events.append((consumed, message))
+
+    scope = {
+        "type": "http",
+        "method": "POST",
+        "path": "/jobs",
+        "headers": [(b"content-length", str(22 * 1024 * 1024).encode())],
+    }
+    asyncio.run(BodyLimitMiddleware(inner)(scope, receive, send))
+    start = next(m for _, m in events if m["type"] == "http.response.start")
+    body = next(m for _, m in events if m["type"] == "http.response.body")
+    assert start["status"] == 413
+    assert json.loads(body["body"]) == {"detail": "Файл слишком большой — максимум 20 МБ"}
+    assert events[0][0] == len(chunks)  # тело дочитано до отправки ответа
 
 
 def test_missing_database_url_warns(settings, monkeypatch, caplog):
