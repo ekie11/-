@@ -13,6 +13,8 @@ export function Header() {
   async function logout() {
     try {
       await apiFetch("/auth/logout", { method: "POST" });
+    } catch {
+      /* сервер недоступен — всё равно обновляем состояние и уходим на главную */
     } finally {
       await refresh();
       router.push("/");
@@ -24,7 +26,7 @@ export function Header() {
       <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 text-sm">
         <Link href="/" className="text-base font-semibold text-fg">ГОСТ-сервис</Link>
         <nav className="flex flex-1 flex-wrap items-center gap-x-4 gap-y-1">
-          <Link href="/jobs" className="text-fg hover:text-accent">Мои документы</Link>
+          <Link href="/documents" className="text-fg hover:text-accent">Мои документы</Link>
           {me && <Link href="/profiles" className="text-fg hover:text-accent">Мои профили</Link>}
         </nav>
         {me ? (

@@ -23,6 +23,7 @@ describe("Header", () => {
     expect(screen.getByText("ГОСТ-сервис")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Войти" })).toBeInTheDocument();
     expect(screen.queryByText("Мои профили")).toBeNull();
+    expect(screen.getByRole("link", { name: "Мои документы" })).toHaveAttribute("href", "/documents");
   });
   it("пользователь: email и «Выйти» вызывает logout, refresh и переход на /", async () => {
     const refresh = vi.fn().mockResolvedValue(undefined);
@@ -33,6 +34,15 @@ describe("Header", () => {
     expect(screen.getByRole("link", { name: "Мои профили" })).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Выйти" }));
     expect(apiFetch).toHaveBeenCalledWith("/auth/logout", { method: "POST" });
+    expect(refresh).toHaveBeenCalled();
+    expect(push).toHaveBeenCalledWith("/");
+  });
+  it("ошибка logout не ломает выход", async () => {
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    useMe.mockReturnValue({ me: { id: 1, email: "a@b.c" }, loading: false, refresh });
+    apiFetch.mockRejectedValue(new Error("down"));
+    render(<Header />);
+    await userEvent.click(screen.getByRole("button", { name: "Выйти" }));
     expect(refresh).toHaveBeenCalled();
     expect(push).toHaveBeenCalledWith("/");
   });
