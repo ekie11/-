@@ -212,3 +212,62 @@ def test_profiles_have_toc():
         cfg = builtin_profile(pid).rules["toc"]
         assert cfg.value == {"levels": 3, "hyperlinks": True}
         assert cfg.severity == "recommendation"
+
+
+T = [("p", "Министерство"), ("p", "Отчёт"), ("structural", "СОДЕРЖАНИЕ")]
+
+
+def _format_words(blocks):
+    bad = save(build_docx(blocks, use_heading_styles=False))
+    before = [t for t in (p.text for p in load_docx(bad).paragraphs) if t]
+    res = process(bad, P, "format")
+    d = load_docx(res.docx_bytes)
+    return before, [p.text for p in d.paragraphs], d
+
+
+def test_repro_a_pages_no_loss():
+    blocks = T + [("p", "Введение ....... 3"), ("p", "1 Обзор ....... 4"), ("h1", "1 Обзор"),
+                  ("p", "Важный текст."), ("p", "Ещё абзац.")]
+    _, after, d = _format_words(blocks)
+    assert "Важный текст." in after and "Ещё абзац." in after
+    assert "1 Обзор" in after and len(_instr(d)) == 1 and len(_links(d)) == 1
+    assert "Введение ....... 3" not in after
+
+
+def test_repro_b_entries_without_pages():
+    blocks = T + [("p", "Введение"), ("p", "1 Обзор"), ("structural", "ВВЕДЕНИЕ"), ("p", "Текст."),
+                  ("h1", "1 Обзор"), ("p", "Тело.")]
+    _, after, d = _format_words(blocks)
+    assert "Тело." in after and "Текст." in after
+    assert len(_instr(d)) == 1 and len(_links(d)) == 2 and len(_bookmarks(d)) == 2
+    assert "Введение" not in after
+
+
+def test_repro_c_struct_after():
+    blocks = T + [("p", "Введение ....... 3"), ("p", "1 Обзор ....... 4"), ("h1", "1 Обзор"),
+                  ("p", "Тело."), ("structural", "ЗАКЛЮЧЕНИЕ"), ("p", "Вывод.")]
+    _, after, d = _format_words(blocks)
+    assert "Тело." in after and "1 Обзор" in after and "Вывод." in after
+    assert len(_links(d)) == 2
+
+
+def test_deleting_body_paragraph_still_raises(monkeypatch):
+    import pytest
+
+    from gostdoc_engine.rules.body import FontNameRule
+    from gostdoc_engine.textguard import TextChangedError
+
+    def evil(self, model, cfg):
+        for p in model.paragraphs:
+            if p.text == "Тело.":
+                p.para._p.getparent().remove(p.para._p)
+
+    monkeypatch.setattr(FontNameRule, "fix", evil)
+    blocks = T + [("structural", "ВВЕДЕНИЕ"), ("h1", "1 Обзор"), ("p", "Тело.")]
+    with pytest.raises(TextChangedError):
+        process(save(build_docx(blocks, use_heading_styles=False)), P, "format")
+
+
+def test_check_silent_without_headings():
+    res = process(save(build_docx(T + [("p", "Введение ....... 3")])), P, "check")
+    assert not [i for i in res.report["issues"] if i["rule"] == "toc"]

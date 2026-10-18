@@ -55,6 +55,10 @@ def _entries(model: DocModel) -> list[tuple[DocParagraph, int]]:
     return out
 
 
+def has_entries(model: DocModel) -> bool:
+    return bool(_entries(model))
+
+
 # ---------- стили заголовков ----------
 
 def _heading_style(doc, name: str):

@@ -17,7 +17,7 @@ class TocRule(Rule):
 
     def check(self, model: DocModel, cfg: RuleConfig) -> list[Issue]:
         heading = toc.toc_heading(model)
-        if heading is None or toc.has_toc_field(model.doc):
+        if heading is None or toc.has_toc_field(model.doc) or not toc.has_entries(model):
             return []
         manual = any(p.role == Role.TOC and p.text.strip() for p in model.paragraphs)
         message = MANUAL if manual else MISSING

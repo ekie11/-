@@ -41,6 +41,40 @@ _LIST_STYLE = re.compile(r"^(?:list|список)", re.IGNORECASE)
 _HEADING_ROLES = {1: Role.HEADING_1, 2: Role.HEADING_2, 3: Role.HEADING_3}
 
 
+_TOC_ENTRY = re.compile(r"(\.{2,}|\t|\s{2,})\s*\d{1,4}\s*$")
+_TOC_INSTR = re.compile(r"\s*TOC\b")
+
+
+def looks_like_toc_entry(text: str) -> bool:
+    """Строка похожа на пункт оглавления: заканчивается номером страницы после точек/табуляции."""
+    return bool(_TOC_ENTRY.search(text))
+
+
+def toc_field_paragraphs(doc) -> set:
+    """Элементы w:p, находящиеся внутри поля TOC (между begin и end)."""
+    inside: set = set()
+    stack: list[bool] = []  # True для полей TOC
+    pending_begin = False
+    for p in doc.element.body.iter(qn("w:p")):
+        if any(stack):
+            inside.add(p)
+        for el in p.iter(qn("w:fldChar"), qn("w:instrText")):
+            if el.tag == qn("w:fldChar"):
+                kind = el.get(qn("w:fldCharType"))
+                if kind == "begin":
+                    stack.append(False)
+                    pending_begin = True
+                elif kind == "end" and stack:
+                    stack.pop()
+                    pending_begin = False
+            elif pending_begin and stack:
+                stack[-1] = bool(_TOC_INSTR.match(el.text or ""))
+                pending_begin = False
+                if stack[-1]:
+                    inside.add(p)
+    return inside
+
+
 def _is_structural(text: str) -> bool:
     norm = " ".join(text.split()).upper()
     return norm in STRUCTURAL_NAMES or bool(_APPENDIX.match(norm))
@@ -148,11 +182,28 @@ def analyze(doc) -> DocModel:
         None,
     )
     if toc_start is not None:
+        in_field = toc_field_paragraphs(doc)
+        orig = {p.index: p.role for p in items}
+        head_roles = (Role.STRUCTURAL, Role.HEADING_1, Role.HEADING_2, Role.HEADING_3)
+        def repeated_later(p) -> bool:
+            return any(q.index > p.index and orig[q.index] in head_roles and norm(q) == norm(p)
+                       for q in items)
+
         for p in items[toc_start + 1 :]:
-            if p.role == Role.STRUCTURAL or p.index in style_based:
+            if p.role in (Role.EMPTY, Role.IN_TABLE):
+                continue
+            if p.role == Role.STRUCTURAL:
+                # «Введение» без номера страницы, а настоящий заголовок ниже
+                if repeated_later(p):
+                    p.role = Role.TOC
+                    continue
                 break
-            if p.role not in (Role.EMPTY, Role.IN_TABLE):
+            if p.index in style_based:
+                break
+            if p.para._p in in_field or looks_like_toc_entry(p.text) or repeated_later(p):
                 p.role = Role.TOC
+                continue
+            break
 
     # Записи списка источников («1. Иванов …») — не заголовки
     in_refs = False
