@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import re
 
+from gostdoc_engine.rules import captions
+
 from .config import Settings
 from .fields import field_index, load_fields
 from .llm import chat_json
@@ -35,6 +37,9 @@ _SYSTEM = """Ты извлекаешь требования к оформлен�
 пропусти поле.
 - Одно требование попадает либо в "found", либо в "unsupported", но не в оба \
 сразу. Элемент "unsupported" не должен повторять цитату из "found".
+- Для полей с path `pattern` (шаблон подписи) используй `{{n}}` для номера и \
+`{{title}}` для названия, слово и тире оставляй из методички, например \
+«Таблица {{n}} — {{title}}». Других фигурных скобок не используй.
 - Числа пиши числами (десятичная точка), без единиц измерения.
 
 Поля (rule | path | подпись | тип):
@@ -135,6 +140,28 @@ def _number_in_quote(num: float, quote: str) -> bool:
     return False
 
 
+def _pattern_ok(value: str) -> bool:
+    if "{n}" not in value or "{title}" not in value:
+        return False
+    rest = value.replace("{n}", "").replace("{title}", "")
+    if "{" in rest or "}" in rest:
+        return False
+    try:
+        captions._regex(value)
+    except re.error:
+        return False
+    return True
+
+
+def _evidence_ok(f: dict, value, quote: str) -> bool:
+    """Для выбора: в цитате есть основа слова, связанная с выбранным вариантом."""
+    for o in f["options"]:
+        if o["value"] == value and o.get("evidence"):
+            q = _norm_quote(quote)
+            return any(stem in q for stem in o["evidence"])
+    return True
+
+
 def _coerce(f: dict, value):
     kind = f["kind"]
     if kind == "number":
@@ -167,6 +194,8 @@ def _coerce(f: dict, value):
     if kind == "text" and isinstance(value, str):
         v = value.strip()
         if v and len(v) <= MAX_TEXT_VALUE:
+            if f["path"] == "pattern" and not _pattern_ok(v):
+                return None
             return v
     return None
 
@@ -198,6 +227,9 @@ def validate(raw: dict, text: str) -> dict:
             rejected += 1
             continue
         if f["kind"] == "number" and not _number_in_quote(value, item["quote"]):
+            rejected += 1
+            continue
+        if f["kind"] == "select" and not _evidence_ok(f, value, item["quote"]):
             rejected += 1
             continue
         seen.add(key)

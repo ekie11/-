@@ -192,3 +192,39 @@ def test_zero_in_words_and_trailing_zeros():
         r = validate({"found": [_f("body.font_size", "target_pt", val, q)],
                       "unsupported": []}, t)
         assert r["found"] == []
+
+
+SEL = (
+    "Страницы книжной ориентации. Заголовок размещают посередине строки. "
+    "Текст выравнивают слева. Номер по центру вверху страницы. "
+    "Шрифт Times New Roman. Подпись: Рисунок 1 — Название."
+)
+
+
+def _sel(rule, path, value, quote):
+    return validate({"found": [_f(rule, path, value, quote)], "unsupported": []}, SEL)
+
+
+def test_pattern_accepted_and_rejected():
+    q = "Рисунок 1 — Название"
+    ok = _sel("captions.figure", "pattern", "Рисунок {n} — {title}", q)
+    assert len(ok["found"]) == 1
+    for bad in ("Таблица X.Y − Название", "Рисунок {number} – {name}",
+                "Рисунок {n}", "Рисунок {title}", "Рисунок {n} — {title} {x}"):
+        r = _sel("captions.figure", "pattern", bad, q)
+        assert r["found"] == [] and r["rejected_count"] == 1, bad
+
+
+def test_pattern_prompt_mentions_placeholders():
+    system, _ = build_messages("x")
+    assert "{n}" in system and "{title}" in system
+
+
+def test_select_evidence():
+    r = _sel("page.size", "orientation", "portrait", "Шрифт Times New Roman")
+    assert r["found"] == [] and r["rejected_count"] == 1
+    assert _sel("page.size", "orientation", "portrait", "Страницы книжной ориентации")["found"]
+    assert _sel("headings.section", "align", "center", "посередине строки")["found"]
+    assert _sel("body.alignment", "align", "left", "выравнивают слева")["found"]
+    assert _sel("page_numbers", "position", "top_center", "по центру вверху")["found"]
+    assert _sel("body.alignment", "align", "right", "выравнивают слева")["found"] == []

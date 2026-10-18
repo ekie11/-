@@ -13,7 +13,7 @@ export type FieldDef = {
   min?: number;
   max?: number;
   step?: number;
-  options?: { value: string; label: string }[];
+  options?: { value: string; label: string; evidence?: string[] }[];
 };
 
 export type ProfileFieldsResponse = {
