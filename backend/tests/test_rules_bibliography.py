@@ -126,3 +126,31 @@ def test_citation_number_limits_and_roles():
     m = analyze(build_docx([("p", "В [2019] и [0] году."),
                             ("table_caption", "Таблица 1 - Данные [1]"), *SEC]))
     assert find_citations(m) == []
+
+
+def test_unnumbered_list():
+    issues = check([("p", "См. [1] и [2]."),
+                    ("structural", "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ"),
+                    ("source", "Иванов И. И. Экономика. — М. : Наука, 2019. — 100 с."),
+                    ("source", "Петров П. П. Статья // Вестник. — 2020. — № 2.")])
+    msgs = [i.message for i in issues]
+    assert not any("несуществующий" in m for m in msgs)
+    assert "Источники в списке не пронумерованы" in msgs
+
+
+def test_unnumbered_entries_checked():
+    msgs = [i.message for i in check([
+        ("p", "См. [1] и [2]."),
+        ("structural", "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ"),
+        ("source", "Иванов И. И. Экономика. — М. : Наука, 2019."),
+        ("source", "Петров П. П. Статья без года.")])]
+    assert any(m.startswith("Источник 2: нет года") for m in msgs)
+
+
+def test_hyphen_separator():
+    issues = check([("p", "См. [1]."),
+                    ("structural", "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ"),
+                    ("source", "1. Иванов И. И. Экономика. - Москва : Наука, 2019.")])
+    msgs = [i.message for i in issues]
+    assert not any("нет выходных данных" in m for m in msgs)
+    assert "Источник 1: вместо дефиса между элементами нужно тире « — »" in msgs

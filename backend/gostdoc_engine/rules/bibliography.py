@@ -7,6 +7,7 @@ from ..bibliography import (
     find_citations,
     find_section,
     fix_paragraph_typography,
+    is_unnumbered,
     parse_entries,
 )
 from ..model import DocModel, Role
@@ -36,6 +37,9 @@ class BibliographyRule(Rule):
         issues = []
         prev = 0
         entries = parse_entries(section)
+        if is_unnumbered(section):
+            issues.append(issue("Источники в списке не пронумерованы",
+                                entries[0].paragraph_index, "recommendation"))
         for pos, e in enumerate(entries, start=1):
             if e.number is None:
                 e.number = pos
@@ -46,7 +50,8 @@ class BibliographyRule(Rule):
                     entry.paragraph_index))
             prev = entry.number
             for msg in check_entry(entry):
-                sev = "recommendation" if "вместо «[Электронный ресурс]»" in msg else None
+                rec = "вместо «[Электронный ресурс]»" in msg or "вместо дефиса" in msg
+                sev = "recommendation" if rec else None
                 issues.append(issue(msg, entry.paragraph_index, sev))
         issues.extend(self._citation_issues(model, cfg, entries, issue))
         return issues

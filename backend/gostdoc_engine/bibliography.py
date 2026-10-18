@@ -10,6 +10,7 @@ _NUM_START = re.compile(r"^\s*(\d{1,3})[.)]\s")
 _YEAR = re.compile(r"\b(1[89]|20)\d{2}\b")
 _ACCESS = re.compile(r"\(дата обращения:\s*\d{2}\.\d{2}\.\d{4}\)", re.IGNORECASE)
 _URL = re.compile(r"https?://|URL:")
+_HYPHEN_SEP = re.compile(r"(?<!\d) [-–] (?!\d)")
 _OLD_ELECTRONIC = re.compile(r"\[Электронный ресурс\]", re.IGNORECASE)
 
 
@@ -41,7 +42,17 @@ def find_section(model: DocModel) -> list[DocParagraph] | None:
     return out
 
 
+def is_unnumbered(paragraphs: list[DocParagraph]) -> bool:
+    """Список без «N.» и без элементов списка Word (вставлен простым текстом)."""
+    paras = [p for p in paragraphs if p.text.strip()]
+    return bool(paras) and not any(
+        _NUM_START.match(p.text) or p.role == Role.LIST_ITEM for p in paras)
+
+
 def parse_entries(paragraphs: list[DocParagraph]) -> list[Entry]:
+    if is_unnumbered(paragraphs):
+        return [Entry(pos, p.text.strip(), p.index)
+                for pos, p in enumerate((q for q in paragraphs if q.text.strip()), start=1)]
     entries: list[Entry] = []
     for p in paragraphs:
         m = _NUM_START.match(p.text)
@@ -68,9 +79,11 @@ def check_entry(entry: Entry) -> list[str]:
     if electronic:
         if not _ACCESS.search(text):
             msgs.append(f"{label}: у электронного ресурса нет даты обращения")
-    elif " // " not in text and not (" — " in text and " : " in text):
+    elif " // " not in text and not (re.search(r" [—–-] ", text) and " : " in text):
         msgs.append(f"{label}: нет выходных данных (« — Место : Издательство, год» "
                     "или « // Источник» для статьи)")
+    if not electronic and _HYPHEN_SEP.search(text):
+        msgs.append(f"{label}: вместо дефиса между элементами нужно тире « — »")
     if _OLD_ELECTRONIC.search(text):
         msgs.append(f"{label}: используйте «Текст : электронный» вместо «[Электронный ресурс]»")
     return msgs
