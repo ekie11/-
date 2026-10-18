@@ -14,7 +14,7 @@ def test_migrations_create_all_tables(tmp_path):
     cfg.set_main_option("sqlalchemy.url", url)
     command.upgrade(cfg, "head")
     tables = set(inspect(create_engine(url)).get_table_names())
-    assert {"users", "session_tokens", "profiles", "jobs"} <= tables
+    assert {"users", "session_tokens", "profiles", "jobs", "extractions"} <= tables
 
 
 def test_migration_0002_guest_mode(tmp_path):

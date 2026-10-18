@@ -102,6 +102,15 @@ IP клиента — адрес подключения. `X-Forwarded-For` уч�
 | GET | `/jobs/{id}` | — | 200 `{id, status, mode, error, report, has_pdf, created_at, expires_at}` | 404; 401 |
 | GET | `/jobs/{id}/docx` | — | 200 DOCX-файл | 404 нет задачи/файла; 409 результат не готов; 410 срок хранения истёк; 401 |
 | GET | `/jobs/{id}/pdf` | — | 200 PDF-предпросмотр | 404 нет задачи/PDF; 409 не готов; 410 истёк; 401 |
+| POST | `/extractions` | multipart: `file` (DOCX/PDF до 20 МБ) или `text` (до 150 000 символов), `base_profile_id` (ГОСТ-профиль, по умолчанию `gost-7.32-2017`) | 202 `{id}` | 400 нет входа/оба входа/не DOCX и не PDF/PDF без текста/пустой текст/базовый профиль не найден; 413 слишком большой; 429 лимит пользователя или сервиса; 503 функция не настроена (нет `LLM_API_KEY`) или очередь недоступна; 401 |
+| GET | `/extractions/quota` | — | 200 `{used, limit}` (за последние 24 ч) | 401 |
+| GET | `/extractions/{id}` | — | 200 `{id, status, base_profile_id, source_name, result, error}`; `status`: `queued`, `running`, `done`, `failed`; `result` = `{found, unsupported, rejected_count}` | 404 (в том числе чужое); 401 |
+| POST | `/extractions/{id}/profile` | JSON `{accepted: [индексы found], name}` (имя 1–255 символов) | 201 `{profile_id}`: копия базового профиля с принятыми значениями | 400 индекс вне диапазона/некорректный профиль; 409 результат не готов; 404; 401 |
+
+Извлечение (`/extractions`) доступно только вошедшим. Текст методички не хранится: он передаётся
+в задачу очереди, в БД остаётся результат с цитатами. Лимиты считаются за 24 ч
+(`EXTRACT_USER_DAILY`, `EXTRACT_GLOBAL_DAILY`); неудачи из-за недоступности модели в лимит
+не входят.
 
 Статусы задачи: `queued`, `running`, `done`, `error`, `expired`. При ошибке или
 таймауте задача получает статус `error` и русское сообщение в поле `error`.

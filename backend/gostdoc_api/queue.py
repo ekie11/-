@@ -27,3 +27,11 @@ def on_job_failure(job, connection, type_, value, traceback) -> None:
 
     is_timeout = isinstance(type_, type) and issubclass(type_, JobTimeoutException)
     mark_error_if_open(job.id, TIMEOUT_MESSAGE if is_timeout else None)
+
+
+def on_extraction_failure(job, connection, type_, value, traceback) -> None:
+    """RQ вызывает при падении или таймауте извлечения; текст методички не логируется."""
+    from .worker import TIMEOUT_MESSAGE, mark_extraction_failed_if_open
+
+    is_timeout = isinstance(type_, type) and issubclass(type_, JobTimeoutException)
+    mark_extraction_failed_if_open(job.id, TIMEOUT_MESSAGE if is_timeout else None)

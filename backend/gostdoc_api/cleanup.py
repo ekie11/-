@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from . import storage
 from .config import Settings
-from .models import GuestSession, Job, SessionToken
+from .models import Extraction, GuestSession, Job, SessionToken
 
 
 def _aware(dt: datetime) -> datetime:
@@ -35,5 +35,10 @@ def cleanup_expired(db: Session, settings: Settings, now: datetime) -> int:
     for guest in db.scalars(select(GuestSession)):
         if _aware(guest.expires_at) <= now:
             db.delete(guest)
+    db.execute(
+        delete(Extraction).where(
+            Extraction.created_at < now - timedelta(days=settings.file_ttl_days)
+        )
+    )
     db.commit()
     return count

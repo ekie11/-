@@ -21,8 +21,10 @@ from gostdoc_engine.toc import has_toc_field, set_page_numbers, set_update_field
 from . import storage
 from .config import Settings, get_settings
 from .db import make_engine, make_sessionmaker
+from .extraction import run_extraction
+from .llm import LlmError
 from .lo_pages import page_numbers_and_pdf
-from .models import Job
+from .models import Extraction, Job
 from .pdf import render_pdf
 
 log = logging.getLogger(__name__)
@@ -182,3 +184,46 @@ def run_job(job_id: str) -> None:
             log.exception("Job %s failed", job_id)
             db.rollback()
             _set_error(db, job, GENERIC_ERROR)
+
+
+LLM_UNAVAILABLE = "Сервис распознавания временно недоступен, попробуйте позже"
+EXTRACTION_ERROR = "Не удалось обработать методичку"
+
+
+def _fail_extraction(db: Session, row: Extraction, message: str, counts: bool) -> None:
+    row.status = "failed"
+    row.error = message
+    row.counts_toward_limit = counts
+    db.commit()
+
+
+def mark_extraction_failed_if_open(extraction_id: str, message: str | None = None) -> None:
+    """Переводит извлечение в failed, если оно ещё не завершено."""
+    with _sessionmaker(get_settings())() as db:
+        row = db.get(Extraction, extraction_id)
+        if row is None or row.status in ("done", "failed"):
+            return
+        _fail_extraction(db, row, message or EXTRACTION_ERROR, True)
+
+
+def run_extraction_job(extraction_id: str, text: str) -> None:
+    settings = get_settings()
+    with _sessionmaker(settings)() as db:
+        row = db.get(Extraction, extraction_id)
+        if row is None or row.status not in ("queued", "running"):
+            return
+        row.status = "running"
+        db.commit()
+        try:
+            result = run_extraction(text, settings)
+            row.result = result
+            row.status = "done"
+            db.commit()
+        except LlmError:
+            db.rollback()
+            _fail_extraction(db, row, LLM_UNAVAILABLE, False)
+        except Exception as exc:  # noqa: BLE001
+            # текст методички не попадает в лог: только тип исключения
+            log.error("Extraction %s failed: %s", extraction_id, type(exc).__name__)
+            db.rollback()
+            _fail_extraction(db, row, EXTRACTION_ERROR, True)

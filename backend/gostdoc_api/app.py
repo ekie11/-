@@ -18,6 +18,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from .config import Settings, get_settings
 from .db import make_engine, make_sessionmaker
 from .routes import auth as auth_routes
+from .routes import extractions as extractions_routes
 from .routes import jobs as jobs_routes
 from .routes import profiles as profiles_routes
 
@@ -133,6 +134,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(profiles_routes.router)
     app.include_router(profiles_routes.fields_router)
     app.include_router(jobs_routes.router)
+    app.include_router(extractions_routes.router)
 
     @app.exception_handler(RequestValidationError)
     async def _validation_handler(request: Request, exc: RequestValidationError):
