@@ -14,8 +14,8 @@ BLOCKS = [
     ("h1", "1 Анализ"),
     ("p", "Основной текст раздела."),
     ("figure", "Схема"),
-    ("figure_caption", "Рисунок 1 – Схема"),
-    ("table_caption", "Таблица 1 – Данные"),
+    ("figure_caption", "Рисунок 1 — Схема"),
+    ("table_caption", "Таблица 1 — Данные"),
     ("table", "a|b;c|d"),
 ]
 KW = dict(  # noqa: C408
@@ -61,5 +61,5 @@ def test_margin_violation_single_issue_with_source(pid):
 @pytest.mark.parametrize("pid", PIDS)
 def test_captions_use_en_dash(pid):
     p = builtin_profile(pid)
-    assert "–" in p.rules["captions.figure"].value["pattern"]
-    assert "–" in p.rules["captions.table"].value["pattern"]
+    assert "—" in p.rules["captions.figure"].value["pattern"]
+    assert "—" in p.rules["captions.table"].value["pattern"]
