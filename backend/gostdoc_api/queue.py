@@ -10,6 +10,7 @@ from rq.timeouts import JobTimeoutException
 from .config import Settings
 
 QUEUE_NAME = "gostdoc"
+EXTRACTION_QUEUE_NAME = "extractions"  # отдельная очередь: один воркер, лимит провайдера
 
 
 def make_queue(settings: Settings) -> Queue:
@@ -19,6 +20,13 @@ def make_queue(settings: Settings) -> Queue:
 def get_queue(request: Request) -> Queue:
     """Зависимость FastAPI; в тестах подменяется через dependency_overrides."""
     return make_queue(request.app.state.settings)
+
+
+def get_extraction_queue(request: Request) -> Queue:
+    """Очередь извлечений; её читает только отдельный воркер с одним процессом."""
+    return Queue(
+        EXTRACTION_QUEUE_NAME, connection=Redis.from_url(request.app.state.settings.redis_url)
+    )
 
 
 def on_job_failure(job, connection, type_, value, traceback) -> None:

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from . import storage
 from .config import Settings
+from .llm import extraction_timeout_s
 from .models import Extraction, GuestSession, Job, SessionToken
 
 
@@ -17,8 +18,14 @@ def _aware(dt: datetime) -> datetime:
     return dt if dt.tzinfo else dt.replace(tzinfo=UTC)
 
 
-STUCK_AFTER = timedelta(minutes=30)  # таймаут задачи (до 300 с и выше) плюс запас
+STUCK_MIN = timedelta(minutes=30)
+STUCK_QUEUE_SLACK = timedelta(minutes=10)  # ожидание в очереди одного воркера
 STUCK_MESSAGE = "Сервис распознавания временно недоступен, попробуйте позже"
+
+
+def stuck_after(settings: Settings) -> timedelta:
+    """Через сколько извлечение считается зависшим: таймаут задачи плюс запас на очередь."""
+    return max(STUCK_MIN, timedelta(seconds=extraction_timeout_s(settings)) + STUCK_QUEUE_SLACK)
 
 
 def cleanup_expired(db: Session, settings: Settings, now: datetime) -> int:
@@ -43,7 +50,7 @@ def cleanup_expired(db: Session, settings: Settings, now: datetime) -> int:
         update(Extraction)
         .where(
             Extraction.status.in_(("queued", "running")),
-            Extraction.created_at < now - STUCK_AFTER,
+            Extraction.created_at < now - stuck_after(settings),
         )
         .values(status="failed", error=STUCK_MESSAGE, counts_toward_limit=False)
     )

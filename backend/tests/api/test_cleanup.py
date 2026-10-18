@@ -88,3 +88,10 @@ def test_stuck_extractions_marked_failed(client, db_session, settings):
         assert "временно недоступен" in row.error
     assert db_session.get(Extraction, "s2").status == "done"
     assert db_session.get(Extraction, "fresh").status == "queued"
+
+
+def test_stuck_threshold_covers_extraction_timeout(settings):
+    from gostdoc_api.cleanup import stuck_after
+    from gostdoc_api.llm import extraction_timeout_s
+
+    assert stuck_after(settings).total_seconds() > extraction_timeout_s(settings)

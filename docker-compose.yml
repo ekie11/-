@@ -16,7 +16,7 @@ x-backend: &backend
     TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.28.0.0/16}
     LLM_API_KEY: ${LLM_API_KEY:-}
     LLM_BASE_URL: ${LLM_BASE_URL:-https://open.bigmodel.cn/api/paas/v4}
-    LLM_MODEL: ${LLM_MODEL:-glm-4.6}
+    LLM_MODEL: ${LLM_MODEL:-glm-4.5-flash}
     LLM_TIMEOUT_S: ${LLM_TIMEOUT_S:-120}
     EXTRACT_USER_DAILY: ${EXTRACT_USER_DAILY:-5}
     EXTRACT_GLOBAL_DAILY: ${EXTRACT_GLOBAL_DAILY:-500}
@@ -77,6 +77,17 @@ services:
     command: ["python", "-m", "gostdoc_api", "worker"]
     volumes:
       - storage:/data/storage
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  extract-worker:
+    <<: *backend
+    init: true
+    # Только очередь extractions и ровно один процесс: лимит параллельных запросов к модели
+    command: ["python", "-m", "gostdoc_api", "extract-worker"]
     depends_on:
       migrate:
         condition: service_completed_successfully

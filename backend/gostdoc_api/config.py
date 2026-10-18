@@ -25,7 +25,7 @@ class Settings:
     trusted_proxies: tuple[str, ...] = ()
     llm_api_key: str = ""
     llm_base_url: str = "https://open.bigmodel.cn/api/paas/v4"
-    llm_model: str = "glm-4.6"
+    llm_model: str = "glm-4.5-flash"
     llm_timeout_s: int = 120
     extract_user_daily: int = 5
     extract_global_daily: int = 500
@@ -46,7 +46,7 @@ def get_settings() -> Settings:
         llm_base_url=env.get(
             "LLM_BASE_URL", "https://open.bigmodel.cn/api/paas/v4"
         ).strip(),
-        llm_model=env.get("LLM_MODEL", "glm-4.6").strip(),
+        llm_model=env.get("LLM_MODEL", "glm-4.5-flash").strip(),
         llm_timeout_s=int(env.get("LLM_TIMEOUT_S", "120")),
         extract_user_daily=int(env.get("EXTRACT_USER_DAILY", "5")),
         extract_global_daily=int(env.get("EXTRACT_GLOBAL_DAILY", "500")),

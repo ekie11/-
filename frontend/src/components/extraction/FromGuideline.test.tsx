@@ -62,6 +62,18 @@ async function submitText() {
 }
 
 describe("FromGuideline", () => {
+  it("queued показывает «В очереди…», running — «Читаем методичку…»", async () => {
+    api.getExtraction
+      .mockResolvedValueOnce({ ...running, status: "queued" })
+      .mockResolvedValue(running);
+    await submitText();
+    expect(screen.getByText("В очереди…")).toBeInTheDocument();
+    expect(screen.queryByText("Читаем методичку… обычно до минуты")).not.toBeInTheDocument();
+    await act(async () => { await vi.advanceTimersByTimeAsync(POLL_MS); });
+    await flush();
+    expect(screen.getByText("Читаем методичку… обычно до минуты")).toBeInTheDocument();
+  });
+
   it("опрашивает раз в 2 с до готовности, затем таблица", async () => {
     api.getExtraction.mockResolvedValueOnce(running).mockResolvedValueOnce(running).mockResolvedValue(done);
     await submitText();

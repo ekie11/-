@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Поднимает API + RQ-воркер + Redis для сквозных тестов; при выходе всё убирает.
+# Поднимает API + RQ-воркеры + Redis для сквозных тестов; при выходе всё убирает.
 set -euo pipefail
 
 PYTHON="${PYTHON:-python3}"
@@ -73,6 +73,8 @@ cd "$ROOT/backend"
 "$PYTHON" -m gostdoc_api serve --host 127.0.0.1 --port 8000 &
 PIDS+=("$!")
 "$PYTHON" -m gostdoc_api worker &
+PIDS+=("$!")
+"$PYTHON" -m gostdoc_api extract-worker &
 PIDS+=("$!")
 
 # Выходим, как только любой из процессов умер (cleanup уберёт остальные).

@@ -99,3 +99,9 @@ def test_database_url_set_no_warning(settings, caplog):
     with caplog.at_level(logging.WARNING, logger="gostdoc_api.app"):
         create_app(settings)
     assert not any("DATABASE_URL" in r.getMessage() for r in caplog.records)
+
+
+def test_extraction_queue_is_separate():
+    from gostdoc_api.queue import EXTRACTION_QUEUE_NAME, QUEUE_NAME
+
+    assert EXTRACTION_QUEUE_NAME == "extractions" != QUEUE_NAME

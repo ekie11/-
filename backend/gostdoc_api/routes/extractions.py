@@ -18,8 +18,9 @@ from gostdoc_engine.profile import Profile
 from .. import profiles_service as svc
 from ..auth import DbDep, current_user
 from ..guideline_text import GuidelineError, check_text, extract_text
+from ..llm import extraction_timeout_s
 from ..models import Extraction, User
-from ..queue import get_queue, on_extraction_failure
+from ..queue import get_extraction_queue, on_extraction_failure
 from ..worker import run_extraction_job
 
 router = APIRouter(prefix="/extractions", tags=["extractions"])
@@ -32,7 +33,6 @@ BASE_NOT_FOUND = "Базовый профиль не найден"
 USER_LIMIT = "Лимит извлечений на сегодня исчерпан"
 GLOBAL_LIMIT = "Сервис перегружен, попробуйте завтра"
 QUEUE_DOWN = "Сервис обработки временно недоступен, попробуйте позже"
-EXTRACTION_TIMEOUT_S = 300
 FAILURE_TTL_S = 60
 
 UserDep = Annotated[User, Depends(current_user)]
@@ -76,7 +76,7 @@ async def create_extraction(
     request: Request,
     db: DbDep,
     user: UserDep,
-    queue: Annotated[Queue, Depends(get_queue)],
+    queue: Annotated[Queue, Depends(get_extraction_queue)],
     base_profile_id: Annotated[str, Form()] = DEFAULT_BASE,
     file: Annotated[UploadFile | None, File()] = None,
     text: Annotated[str | None, Form()] = None,
@@ -114,7 +114,7 @@ async def create_extraction(
     )
     db.add(row)
     db.commit()
-    timeout = max(EXTRACTION_TIMEOUT_S, settings.llm_timeout_s * 3)
+    timeout = extraction_timeout_s(settings)
     try:
         queue.enqueue(
             run_extraction_job,

@@ -176,7 +176,11 @@ export function FromGuideline() {
       />
     );
   } else {
-    body = <p role="status">Читаем методичку… обычно до минуты</p>;
+    body = (
+      <p role="status">
+        {extraction?.status === "queued" ? "В очереди…" : "Читаем методичку… обычно до минуты"}
+      </p>
+    );
   }
 
   return (

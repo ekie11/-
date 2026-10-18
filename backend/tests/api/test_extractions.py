@@ -13,7 +13,7 @@ from gostdoc_api import extraction, worker
 from gostdoc_api.cleanup import cleanup_expired
 from gostdoc_api.llm import LlmError
 from gostdoc_api.models import Extraction
-from gostdoc_api.queue import get_queue, on_extraction_failure
+from gostdoc_api.queue import get_extraction_queue, on_extraction_failure
 
 from .test_profiles import GOST, reg
 
@@ -57,7 +57,7 @@ def app(settings, monkeypatch):
 @pytest.fixture
 def queue(app):
     q = Queue(is_async=False, connection=fakeredis.FakeStrictRedis())
-    app.dependency_overrides[get_queue] = lambda: q
+    app.dependency_overrides[get_extraction_queue] = lambda: q
     return q
 
 
@@ -257,3 +257,7 @@ def test_enqueue_does_not_keep_text_in_redis(client, queue, monkeypatch):
     kw = calls[0]
     assert kw["result_ttl"] == 0 and kw["failure_ttl"] == 60
     assert kw["ttl"] == kw["job_timeout"]
+    from gostdoc_api.config import get_settings
+    from gostdoc_api.llm import extraction_timeout_s
+
+    assert kw["job_timeout"] == extraction_timeout_s(get_settings())

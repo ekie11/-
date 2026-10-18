@@ -56,7 +56,7 @@ docker compose ps
 `http://IP_СЕРВЕРА/`. Проверка API: `curl http://IP_СЕРВЕРА/api/health`.
 
 Порядок старта: postgres -> migrate (миграции БД, одноразово) -> api, worker,
-cleanup -> frontend -> caddy. Общий том `storage` смонтирован в api и worker.
+extract-worker, cleanup -> frontend -> caddy. Общий том `storage` смонтирован в api и worker.
 Контейнер `cleanup` раз в сутки удаляет просроченные файлы и гостевые сессии.
 
 ---
@@ -115,7 +115,10 @@ docker run --rm -v gostdoc_storage:/s -v "$PWD":/b alpine tar czf /b/storage-$(d
 3. Переменные (значения по умолчанию в `.env.example`): `LLM_BASE_URL`, `LLM_MODEL`,
    `LLM_TIMEOUT_S` (таймаут запроса, с), `EXTRACT_USER_DAILY` (разборов в сутки на
    пользователя, по умолчанию 5), `EXTRACT_GLOBAL_DAILY` (всего в сутки, по умолчанию 500).
-4. Модель: по умолчанию `glm-4.6`; для проб подойдёт бесплатная `glm-4.5-flash`.
+4. Модель: по умолчанию бесплатная `glm-4.5-flash` (у неё лимит 2 параллельных запроса на ключ).
+   Платные альтернативы: `glm-4.6` или Yandex через `LLM_BASE_URL`/`LLM_MODEL`.
+   Извлечения идут в отдельную очередь `extractions`, её обслуживает сервис `extract-worker`
+   ровно в один процесс (не масштабируйте его), при ответе 429 запрос повторяется с паузами 5/15/30 с.
 5. Во внешний сервис в Китае уходит только текст методички, документы студентов никогда.
 6. Миграции применяются как обычно (`docker compose up -d --build`, миграция 0003).
 7. Пока `LLM_API_KEY` пуст, функция скрыта. После правки `.env`: `docker compose up -d`.
@@ -123,7 +126,7 @@ docker run --rm -v gostdoc_storage:/s -v "$PWD":/b alpine tar czf /b/storage-$(d
 ## Логи и диагностика
 
 ```bash
-docker compose logs -f api worker
+docker compose logs -f api worker extract-worker
 docker compose ps
 docker compose restart worker
 ```

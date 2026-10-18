@@ -27,6 +27,17 @@ def _worker(args: argparse.Namespace) -> None:
     Worker([Queue(QUEUE_NAME, connection=connection)], connection=connection).work()
 
 
+def _extract_worker(args: argparse.Namespace) -> None:
+    from redis import Redis
+    from rq import Queue, Worker
+
+    from .queue import EXTRACTION_QUEUE_NAME
+
+    # Ровно один процесс и одна очередь: параллельные запросы к модели не превышают 1.
+    connection = Redis.from_url(get_settings().redis_url)
+    Worker([Queue(EXTRACTION_QUEUE_NAME, connection=connection)], connection=connection).work()
+
+
 def _cleanup(args: argparse.Namespace) -> None:
     from .cleanup import cleanup_expired
     from .db import make_engine, make_sessionmaker
@@ -55,6 +66,9 @@ def main(argv: list[str] | None = None) -> None:
     serve.add_argument("--port", type=int, default=8000)
     serve.set_defaults(func=_serve)
     sub.add_parser("worker", help="запустить RQ-воркер").set_defaults(func=_worker)
+    sub.add_parser("extract-worker", help="запустить RQ-воркер извлечений (один процесс)").set_defaults(
+        func=_extract_worker
+    )
     sub.add_parser("cleanup", help="удалить просроченные файлы и сессии").set_defaults(
         func=_cleanup
     )
