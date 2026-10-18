@@ -39,8 +39,7 @@ ufw allow 22 && ufw allow 80 && ufw allow 443 && ufw enable
 ## 4. Забрать код и настроить
 
 ```bash
-git clone URL_РЕПОЗИТОРИЯ gostdoc && cd gostdoc
-git checkout claude/elegant-knuth-30660g   # или main после слияния
+git clone https://github.com/ekie11/-.git gostdoc && cd gostdoc
 cp .env.example .env
 nano .env     # заменить POSTGRES_PASSWORD (openssl rand -hex 24)
 ```
