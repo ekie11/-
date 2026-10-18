@@ -22,6 +22,7 @@ class Settings:
     soffice_path: str = "soffice"
     job_timeout_s: int = 120
     file_ttl_days: int = 30
+    trusted_proxies: tuple[str, ...] = ()
 
 
 @lru_cache
@@ -35,4 +36,7 @@ def get_settings() -> Settings:
         soffice_path=env.get("SOFFICE_PATH", "soffice"),
         job_timeout_s=int(env.get("JOB_TIMEOUT_S", "120")),
         file_ttl_days=int(env.get("FILE_TTL_DAYS", "30")),
+        trusted_proxies=tuple(
+            p.strip() for p in env.get("TRUSTED_PROXIES", "").split(",") if p.strip()
+        ),
     )

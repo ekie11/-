@@ -19,6 +19,7 @@ from ..auth import (
     verify_dummy,
     verify_password,
 )
+from ..guest import claim_guest_jobs
 from ..models import User
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -67,7 +68,9 @@ def register(body: RegisterIn, request: Request, response: Response, db: DbDep) 
     except IntegrityError:
         db.rollback()
         raise exists from None
-    create_session(db, user, response, request.app.state.settings.cookie_secure)
+    settings = request.app.state.settings
+    create_session(db, user, response, settings.cookie_secure)
+    claim_guest_jobs(db, request, response, user, settings)
     return _user_out(user)
 
 
@@ -81,7 +84,9 @@ def login(body: LoginIn, request: Request, response: Response, db: DbDep) -> dic
         ok = verify_password(user.password_hash, body.password)
     if not ok:
         raise HTTPException(status_code=401, detail="Неверный email или пароль")
-    create_session(db, user, response, request.app.state.settings.cookie_secure)
+    settings = request.app.state.settings
+    create_session(db, user, response, settings.cookie_secure)
+    claim_guest_jobs(db, request, response, user, settings)
     return _user_out(user)
 
 

@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from . import storage
 from .config import Settings
-from .models import Job, SessionToken
+from .models import GuestSession, Job, SessionToken
 
 
 def _aware(dt: datetime) -> datetime:
@@ -32,5 +32,8 @@ def cleanup_expired(db: Session, settings: Settings, now: datetime) -> int:
     for token in db.scalars(select(SessionToken)):
         if _aware(token.expires_at) <= now:
             db.delete(token)
+    for guest in db.scalars(select(GuestSession)):
+        if _aware(guest.expires_at) <= now:
+            db.delete(guest)
     db.commit()
     return count

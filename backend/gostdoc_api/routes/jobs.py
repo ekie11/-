@@ -15,7 +15,9 @@ from sqlalchemy import select
 from gostdoc_engine.importer import MAX_BYTES, InputError, load_docx, text_to_docx
 
 from .. import storage
-from ..auth import DbDep, UserDep
+from ..auth import DbDep
+from ..client_ip import client_ip
+from ..guest import GUEST_HOURS, NewOwnerDep, Owner, OwnerDep, check_guest_limits
 from ..models import Job
 from ..profiles_service import resolve_profile
 from ..queue import get_queue, on_job_failure
@@ -43,7 +45,7 @@ async def _read_limited(file: UploadFile) -> bytes:
 async def create_job(
     request: Request,
     db: DbDep,
-    user: UserDep,
+    owner: NewOwnerDep,
     queue: Annotated[Queue, Depends(get_queue)],
     profile_id: Annotated[str, Form()],
     mode: Annotated[Literal["check", "format"], Form()],
@@ -51,6 +53,10 @@ async def create_job(
     text: Annotated[str | None, Form()] = None,
 ) -> dict:
     settings = request.app.state.settings
+    user, guest = owner.user, owner.guest
+    ip = client_ip(request, settings.trusted_proxies) if guest else None
+    if guest:
+        check_guest_limits(db, guest, ip, datetime.now(UTC))
     has_file = file is not None and bool(file.filename)
     if has_file == (text is not None):
         raise HTTPException(400, NEED_INPUT)
@@ -75,7 +81,9 @@ async def create_job(
     now = datetime.now(UTC)
     job = Job(
         id=job_id,
-        user_id=user.id,
+        user_id=user.id if user else None,
+        guest_id=guest.id if guest else None,
+        client_ip=ip,
         profile_id=profile_id,
         profile_snapshot=profile.model_dump(),
         mode=mode,
@@ -83,7 +91,8 @@ async def create_job(
         status="queued",
         input_path=str(input_path),
         created_at=now,
-        expires_at=now + timedelta(days=settings.file_ttl_days),
+        expires_at=now
+        + (timedelta(hours=GUEST_HOURS) if guest else timedelta(days=settings.file_ttl_days)),
     )
     db.add(job)
     db.commit()
@@ -104,16 +113,23 @@ async def create_job(
     return {"id": job.id, "status": job.status}
 
 
-def _own(db, user, job_id: str) -> Job:
+def _own(db, owner: Owner, job_id: str) -> Job:
     job = db.get(Job, job_id)
-    if job is None or job.user_id != user.id:
+    if job is None:
+        raise HTTPException(404, NOT_FOUND)
+    if owner.user is not None:
+        mine = job.user_id == owner.user.id
+    else:
+        mine = job.guest_id is not None and job.guest_id == owner.guest.id
+    if not mine:
         raise HTTPException(404, NOT_FOUND)
     return job
 
 
 @router.get("")
-def list_jobs(db: DbDep, user: UserDep) -> list[dict]:
-    jobs = db.scalars(select(Job).where(Job.user_id == user.id).order_by(Job.created_at.desc()))
+def list_jobs(db: DbDep, owner: OwnerDep) -> list[dict]:
+    cond = Job.user_id == owner.user.id if owner.user else Job.guest_id == owner.guest.id
+    jobs = db.scalars(select(Job).where(cond).order_by(Job.created_at.desc()))
     return [
         {
             "id": j.id,
@@ -128,8 +144,8 @@ def list_jobs(db: DbDep, user: UserDep) -> list[dict]:
 
 
 @router.get("/{job_id}")
-def get_job(job_id: str, db: DbDep, user: UserDep) -> dict:
-    j = _own(db, user, job_id)
+def get_job(job_id: str, db: DbDep, owner: OwnerDep) -> dict:
+    j = _own(db, owner, job_id)
     return {
         "id": j.id,
         "status": j.status,
@@ -142,8 +158,8 @@ def get_job(job_id: str, db: DbDep, user: UserDep) -> dict:
     }
 
 
-def _file(db, user, job_id: str, kind: str) -> FileResponse:
-    j = _own(db, user, job_id)
+def _file(db, owner, job_id: str, kind: str) -> FileResponse:
+    j = _own(db, owner, job_id)
     if j.status == "expired":
         raise HTTPException(410, "Срок хранения файла истёк")
     if j.status != "done":
@@ -160,10 +176,10 @@ def _file(db, user, job_id: str, kind: str) -> FileResponse:
 
 
 @router.get("/{job_id}/docx")
-def download_docx(job_id: str, db: DbDep, user: UserDep) -> FileResponse:
-    return _file(db, user, job_id, "docx")
+def download_docx(job_id: str, db: DbDep, owner: OwnerDep) -> FileResponse:
+    return _file(db, owner, job_id, "docx")
 
 
 @router.get("/{job_id}/pdf")
-def download_pdf(job_id: str, db: DbDep, user: UserDep) -> FileResponse:
-    return _file(db, user, job_id, "pdf")
+def download_pdf(job_id: str, db: DbDep, owner: OwnerDep) -> FileResponse:
+    return _file(db, owner, job_id, "pdf")

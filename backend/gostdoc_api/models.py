@@ -54,11 +54,26 @@ class ProfileRow(Base):
     )
 
 
+class GuestSession(Base):
+    __tablename__ = "guest_sessions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class Job(Base):
     __tablename__ = "jobs"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=True
+    )
+    guest_id: Mapped[int | None] = mapped_column(
+        ForeignKey("guest_sessions.id", ondelete="SET NULL"), index=True, nullable=True
+    )
+    client_ip: Mapped[str | None] = mapped_column(String(45), nullable=True, index=True)
     profile_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     profile_snapshot: Mapped[dict] = mapped_column(JSONType)
     mode: Mapped[str] = mapped_column(String(32))

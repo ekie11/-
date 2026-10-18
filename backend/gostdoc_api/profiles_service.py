@@ -19,14 +19,14 @@ def builtin_by_id(profile_id: str) -> Profile | None:
     return None
 
 
-def get_row(db: Session, user: User, profile_id: str) -> ProfileRow | None:
+def get_row(db: Session, user: User | None, profile_id: str) -> ProfileRow | None:
     row = db.get(ProfileRow, profile_id)
-    if row is None or row.user_id != user.id:
+    if row is None or user is None or row.user_id != user.id:
         return None
     return row
 
 
-def resolve_profile(db: Session, user: User, profile_id: str) -> Profile:
+def resolve_profile(db: Session, user: User | None, profile_id: str) -> Profile:
     builtin = builtin_by_id(profile_id)
     if builtin is not None:
         return builtin
