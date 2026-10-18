@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("гость: текст -> проверка -> сводка -> скачивание DOCX", async ({ page }) => {
+test("гость: текст -> оформление -> сводка -> скачивание DOCX", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("tab", { name: "Вставить текст" }).click();
   await page.getByLabel("Текст документа").fill("ВВЕДЕНИЕ\n\nТекст работы.");
@@ -10,11 +10,11 @@ test("гость: текст -> проверка -> сводка -> скачив
   const gost = select.locator("option", { hasText: "7.32" }).first();
   await expect(gost).toBeAttached();
   await select.selectOption({ label: (await gost.textContent()) ?? "" });
-  await page.getByText("Проверить", { exact: true }).click();
+  await page.getByText("Оформить", { exact: true }).click();
   await page.getByRole("button", { name: "Запустить" }).click();
 
   await expect(page).toHaveURL(/\/jobs\/[\w-]+/);
-  await expect(page.getByRole("heading", { name: /Замечаний нет|замечани/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Оформление готово/ })).toBeVisible();
   const download = page.getByRole("link", { name: "Скачать DOCX" });
   await expect(download).toBeVisible();
 

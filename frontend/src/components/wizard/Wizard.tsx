@@ -28,6 +28,8 @@ export function Wizard() {
 
   const hasFile = file !== null && fileError === null;
   const hasInput = tab === "file" ? hasFile : text.trim() !== "";
+  const pasted = tab === "text";
+  const effectiveMode: JobMode = pasted ? "format" : mode;
   const step = stepFromQuery(params.get("step"), hasInput);
   const wantedProfile = params.get("profile");
 
@@ -69,7 +71,7 @@ export function Wizard() {
     setLimitReached(false);
     const form = new FormData();
     form.set("profile_id", profileId);
-    form.set("mode", mode);
+    form.set("mode", effectiveMode);
     if (tab === "file" && file) form.set("file", file);
     else form.set("text", text);
     try {
@@ -109,7 +111,8 @@ export function Wizard() {
             profiles={profiles}
             profileId={profileId}
             onProfile={setProfileId}
-            mode={mode}
+            mode={effectiveMode}
+            checkDisabled={pasted}
             onMode={setMode}
             loggedIn={me !== null}
             submitting={submitting}

@@ -96,7 +96,7 @@ describe("Wizard", () => {
     expect(apiUpload).toHaveBeenCalledTimes(1);
     const form = apiUpload.mock.calls[0][1] as FormData;
     expect(form.get("profile_id")).toBe("gost");
-    expect(form.get("mode")).toBe("check");
+    expect(form.get("mode")).toBe("format");
     expect(form.get("text")).toBe("Привет");
     resolve({ id: 5 });
     await waitFor(() => expect(push).toHaveBeenCalledWith("/jobs/5"));
@@ -110,5 +110,30 @@ describe("Wizard", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Зарегистрируйтесь, чтобы продолжить");
     expect(screen.getByRole("link", { name: "Зарегистрироваться" })).toHaveAttribute("href", "/register?next=/");
     expect(screen.getByRole("button", { name: "Запустить" })).toBeEnabled();
+  });
+
+  it("для вставленного текста «Оформить» выбрано, «Проверить» недоступно, в запрос уходит format", async () => {
+    apiUpload.mockResolvedValue({ id: 5 });
+    await toStep2();
+    expect(await screen.findByRole("button", { name: "Запустить" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Проверить/ })).toBeDisabled();
+    expect(screen.getByRole("radio", { name: /Оформить/ })).toBeChecked();
+    expect(
+      screen.getByText("Для вставленного текста доступно только оформление: у него ещё нет своего форматирования"),
+    ).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByLabelText("Требования")).toHaveValue("gost"));
+    await userEvent.click(screen.getByRole("button", { name: "Запустить" }));
+    const form = apiUpload.mock.calls[0][1] as FormData;
+    expect(form.get("mode")).toBe("format");
+  });
+
+  it("для файла «Проверить» доступно и выбрано по умолчанию", async () => {
+    search = "step=2";
+    const view = render(<Wizard />);
+    await userEvent.upload(screen.getByLabelText("Выбрать файл .docx"), new File(["x"], "a.docx"), { applyAccept: false });
+    view.rerender(<Wizard />);
+    expect(await screen.findByRole("radio", { name: /Проверить/ })).toBeEnabled();
+    expect(screen.getByRole("radio", { name: /Проверить/ })).toBeChecked();
+    expect(screen.queryByText(/доступно только оформление/)).toBeNull();
   });
 });
