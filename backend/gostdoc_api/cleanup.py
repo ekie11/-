@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import and_, delete, or_, select, update
 from sqlalchemy.orm import Session
 
 from . import storage
@@ -18,14 +18,14 @@ def _aware(dt: datetime) -> datetime:
     return dt if dt.tzinfo else dt.replace(tzinfo=UTC)
 
 
-STUCK_MIN = timedelta(minutes=30)
-STUCK_QUEUE_SLACK = timedelta(minutes=10)  # ожидание в очереди одного воркера
+QUEUED_MAX_AGE = timedelta(hours=24)  # столько задача может ждать в очереди (ttl в RQ)
+RUNNING_SLACK = timedelta(minutes=5)
 STUCK_MESSAGE = "Сервис распознавания временно недоступен, попробуйте позже"
 
 
-def stuck_after(settings: Settings) -> timedelta:
-    """Через сколько извлечение считается зависшим: таймаут задачи плюс запас на очередь."""
-    return max(STUCK_MIN, timedelta(seconds=extraction_timeout_s(settings)) + STUCK_QUEUE_SLACK)
+def running_stuck_after(settings: Settings) -> timedelta:
+    """Сколько running-извлечение может идти: таймаут задачи плюс запас."""
+    return timedelta(seconds=extraction_timeout_s(settings)) + RUNNING_SLACK
 
 
 def cleanup_expired(db: Session, settings: Settings, now: datetime) -> int:
@@ -46,12 +46,17 @@ def cleanup_expired(db: Session, settings: Settings, now: datetime) -> int:
     for guest in db.scalars(select(GuestSession)):
         if _aware(guest.expires_at) <= now:
             db.delete(guest)
+    stuck = or_(
+        and_(
+            Extraction.status == "running",
+            Extraction.started_at.is_not(None),
+            Extraction.started_at < now - running_stuck_after(settings),
+        ),
+        and_(Extraction.status == "queued", Extraction.created_at < now - QUEUED_MAX_AGE),
+    )
     db.execute(
         update(Extraction)
-        .where(
-            Extraction.status.in_(("queued", "running")),
-            Extraction.created_at < now - stuck_after(settings),
-        )
+        .where(stuck)
         .values(status="failed", error=STUCK_MESSAGE, counts_toward_limit=False)
     )
     db.execute(

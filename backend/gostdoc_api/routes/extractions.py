@@ -34,6 +34,7 @@ USER_LIMIT = "Лимит извлечений на сегодня исчерпа
 GLOBAL_LIMIT = "Сервис перегружен, попробуйте завтра"
 QUEUE_DOWN = "Сервис обработки временно недоступен, попробуйте позже"
 FAILURE_TTL_S = 60
+QUEUE_WAIT_TTL_S = 86400
 
 UserDep = Annotated[User, Depends(current_user)]
 
@@ -122,8 +123,8 @@ async def create_extraction(
             guideline,
             job_id=row.id,
             job_timeout=timeout,
-            ttl=timeout,  # ttl только ограничивает хранение результата в RQ; зависшую в очереди задачу чистит cleanup (текст остаётся в Redis до её запуска)
-            result_ttl=0,  # текст методички не держим в Redis после выполнения
+            ttl=QUEUE_WAIT_TTL_S,  # максимум ожидания в очереди; дольше cleanup всё равно проваливает строку
+            result_ttl=0,  # результат и текст методички не держим в Redis после выполнения
             failure_ttl=FAILURE_TTL_S,
             on_failure=Callback(on_extraction_failure),
         )

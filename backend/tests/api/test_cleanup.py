@@ -68,30 +68,37 @@ def test_stuck_extractions_marked_failed(client, db_session, settings):
     reg(client)
     from datetime import timedelta
 
+    from gostdoc_api.llm import extraction_timeout_s
     from gostdoc_api.models import Extraction
 
-    old = NOW - timedelta(minutes=45)
-    for i, st in enumerate(("queued", "running", "done")):
+    over = timedelta(seconds=extraction_timeout_s(settings)) + timedelta(minutes=6)
+    rows = [
+        # (id, status, created_at, started_at)
+        ("run_old", "running", NOW - timedelta(days=1), NOW - over),
+        ("run_new", "running", NOW - timedelta(hours=2), NOW - timedelta(minutes=2)),
+        ("q_old", "queued", NOW - timedelta(hours=25), None),
+        ("q_1h", "queued", NOW - timedelta(hours=3), None),
+        ("done", "done", NOW - timedelta(days=1), None),
+    ]
+    for i, st, created, started in rows:
         db_session.add(
-            Extraction(id=f"s{i}", user_id=1, status=st, base_profile_id="x", created_at=old)
+            Extraction(id=i, user_id=1, status=st, base_profile_id="x",
+                       created_at=created, started_at=started)
         )
-    db_session.add(
-        Extraction(id="fresh", user_id=1, status="queued", base_profile_id="x",
-                   created_at=NOW - timedelta(minutes=5))
-    )
     db_session.commit()
     cleanup_expired(db_session, settings, NOW)
     db_session.expire_all()
-    for i in (0, 1):
-        row = db_session.get(Extraction, f"s{i}")
+    for i in ("run_old", "q_old"):
+        row = db_session.get(Extraction, i)
         assert row.status == "failed" and row.counts_toward_limit is False
         assert "временно недоступен" in row.error
-    assert db_session.get(Extraction, "s2").status == "done"
-    assert db_session.get(Extraction, "fresh").status == "queued"
+    assert db_session.get(Extraction, "run_new").status == "running"
+    assert db_session.get(Extraction, "q_1h").status == "queued"
+    assert db_session.get(Extraction, "done").status == "done"
 
 
 def test_stuck_threshold_covers_extraction_timeout(settings):
-    from gostdoc_api.cleanup import stuck_after
+    from gostdoc_api.cleanup import running_stuck_after
     from gostdoc_api.llm import extraction_timeout_s
 
-    assert stuck_after(settings).total_seconds() > extraction_timeout_s(settings)
+    assert running_stuck_after(settings).total_seconds() > extraction_timeout_s(settings)

@@ -30,3 +30,16 @@ def test_migration_0002_guest_mode(tmp_path):
     assert {"guest_id", "client_ip"} <= set(cols)
     assert cols["user_id"]["nullable"] is True
     command.downgrade(cfg, "0001")
+
+
+def test_migration_0004_extraction_started_at(tmp_path):
+    url = f"sqlite:///{tmp_path / 'mig4.db'}"
+    cfg = Config(str(BACKEND / "alembic.ini"))
+    cfg.set_main_option("script_location", str(BACKEND / "gostdoc_api" / "migrations"))
+    cfg.set_main_option("sqlalchemy.url", url)
+    command.upgrade(cfg, "head")
+    cols = {c["name"]: c for c in inspect(create_engine(url)).get_columns("extractions")}
+    assert cols["started_at"]["nullable"] is True
+    command.downgrade(cfg, "0003")
+    cols = {c["name"] for c in inspect(create_engine(url)).get_columns("extractions")}
+    assert "started_at" not in cols

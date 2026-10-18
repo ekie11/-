@@ -256,8 +256,37 @@ def test_enqueue_does_not_keep_text_in_redis(client, queue, monkeypatch):
     make(client)
     kw = calls[0]
     assert kw["result_ttl"] == 0 and kw["failure_ttl"] == 60
-    assert kw["ttl"] == kw["job_timeout"]
+    assert kw["ttl"] == 86400
     from gostdoc_api.config import get_settings
     from gostdoc_api.llm import extraction_timeout_s
 
     assert kw["job_timeout"] == extraction_timeout_s(get_settings())
+
+
+def test_worker_sets_started_at(client, queue, db_session):
+    reg(client)
+    eid = make(client)
+    db_session.expire_all()
+    assert db_session.get(Extraction, eid).started_at is not None
+
+
+def test_worker_does_not_overwrite_swept_row(client, queue, db_session, monkeypatch):
+    reg(client)
+    row = Extraction(id="sw", user_id=1, status="queued", base_profile_id=GOST)
+    db_session.add(row)
+    db_session.commit()
+
+    def sweep_midway(*a, **k):
+        db_session.execute(
+            Extraction.__table__.update()
+            .where(Extraction.id == "sw")
+            .values(status="failed", error="swept", counts_toward_limit=False)
+        )
+        db_session.commit()
+        return answer()
+
+    monkeypatch.setattr(worker, "run_extraction", sweep_midway)
+    worker.run_extraction_job("sw", "текст")
+    db_session.expire_all()
+    got = db_session.get(Extraction, "sw")
+    assert got.status == "failed" and got.error == "swept" and got.result is None

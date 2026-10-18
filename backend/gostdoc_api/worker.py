@@ -5,11 +5,12 @@ from __future__ import annotations
 import logging
 import os
 import threading
+from datetime import UTC, datetime
 from pathlib import Path
 
 from docx import Document
 from rq.timeouts import JobTimeoutException
-from sqlalchemy import Engine
+from sqlalchemy import Engine, update
 from sqlalchemy.orm import Session, sessionmaker
 
 from gostdoc_engine.importer import InputError
@@ -190,6 +191,16 @@ LLM_UNAVAILABLE = "Сервис распознавания временно не
 EXTRACTION_ERROR = "Не удалось обработать методичку"
 
 
+def _finish_extraction(db: Session, extraction_id: str, **values) -> None:
+    """Записывает итог, только если строка всё ещё running (очистка могла её провалить)."""
+    db.execute(
+        update(Extraction)
+        .where(Extraction.id == extraction_id, Extraction.status == "running")
+        .values(**values)
+    )
+    db.commit()
+
+
 def _fail_extraction(db: Session, row: Extraction, message: str, counts: bool) -> None:
     row.status = "failed"
     row.error = message
@@ -209,21 +220,26 @@ def mark_extraction_failed_if_open(extraction_id: str, message: str | None = Non
 def run_extraction_job(extraction_id: str, text: str) -> None:
     settings = get_settings()
     with _sessionmaker(settings)() as db:
-        row = db.get(Extraction, extraction_id)
-        if row is None or row.status not in ("queued", "running"):
-            return
-        row.status = "running"
+        claimed = db.execute(
+            update(Extraction)
+            .where(Extraction.id == extraction_id, Extraction.status == "queued")
+            .values(status="running", started_at=datetime.now(UTC))
+        )
         db.commit()
+        if claimed.rowcount == 0:
+            return
         try:
             result = run_extraction(text, settings)
-            row.result = result
-            row.status = "done"
-            db.commit()
+            _finish_extraction(db, extraction_id, status="done", result=result)
         except LlmError:
             db.rollback()
-            _fail_extraction(db, row, LLM_UNAVAILABLE, False)
+            _finish_extraction(
+                db, extraction_id, status="failed", error=LLM_UNAVAILABLE, counts_toward_limit=False
+            )
         except Exception as exc:  # noqa: BLE001
             # текст методички не попадает в лог: только тип исключения
             log.error("Extraction %s failed: %s", extraction_id, type(exc).__name__)
             db.rollback()
-            _fail_extraction(db, row, EXTRACTION_ERROR, True)
+            _finish_extraction(
+                db, extraction_id, status="failed", error=EXTRACTION_ERROR, counts_toward_limit=True
+            )
