@@ -1,0 +1,124 @@
+name: gostdoc
+
+x-backend: &backend
+  build:
+    context: .
+    dockerfile: backend/Dockerfile
+  image: gostdoc-backend
+  restart: unless-stopped
+  environment: &backend-env
+    DATABASE_URL: postgresql+psycopg://gostdoc:${POSTGRES_PASSWORD:?задайте POSTGRES_PASSWORD в .env}@postgres:5432/gostdoc
+    REDIS_URL: redis://redis:6379/0
+    STORAGE_DIR: /data/storage
+    COOKIE_SECURE: ${COOKIE_SECURE:-false}
+    JOB_TIMEOUT_S: ${JOB_TIMEOUT_S:-120}
+    FILE_TTL_DAYS: ${FILE_TTL_DAYS:-30}
+    TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.28.0.0/16}
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: gostdoc
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?задайте POSTGRES_PASSWORD в .env}
+      POSTGRES_DB: gostdoc
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gostdoc -d gostdoc"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  migrate:
+    <<: *backend
+    restart: "no"
+    command: ["python", "-m", "gostdoc_api", "migrate"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    <<: *backend
+    command: ["python", "-m", "gostdoc_api", "serve", "--host", "0.0.0.0", "--port", "8000"]
+    volumes:
+      - storage:/data/storage
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+
+  worker:
+    <<: *backend
+    init: true # LibreOffice порождает потомков: без init остаются зомби
+    command: ["python", "-m", "gostdoc_api", "worker"]
+    volumes:
+      - storage:/data/storage
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  cleanup:
+    <<: *backend
+    init: true
+    command: ["sh", "-c", "while true; do python -m gostdoc_api cleanup; sleep 86400; done"]
+    volumes:
+      - storage:/data/storage
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  frontend:
+    build:
+      context: frontend
+      args:
+        API_URL: http://api:8000
+    image: gostdoc-frontend
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+
+volumes:
+  pgdata:
+  storage:
+  caddy_data:
+  caddy_config:
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
