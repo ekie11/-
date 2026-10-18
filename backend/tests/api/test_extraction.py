@@ -51,7 +51,7 @@ def test_quote_variants_found():
     # другие кавычки/тире, перенос строки, ё
     r = _val([
         _f("page.margins", "left_mm", 30, 'левое - "30 мм"'),
-        _f("body.line_spacing", "multiple", 1.5, "интервал полуторный"),
+        _f("page.margins", "right_mm", 10, "ПРАВОЕ — 10 мм"),
         _f("body.font_name", "name", "Times New Roman", "ШРИФТОМ TIMES NEW ROMAN"),
     ])
     assert r["rejected_count"] == 0 and len(r["found"]) == 3
@@ -130,3 +130,49 @@ def test_unsupported_text_capped():
     q = "Кегль 14 пт"
     r = validate({"found": [], "unsupported": [{"text": "я" * 500, "quote": q}]}, TEXT)
     assert len(r["unsupported"][0]["text"]) == 300
+
+
+def test_number_in_quote_comma_and_dot():
+    t = "Отступ абзаца 1,25 см, кегль 14 пт, интервал 1.5."
+    r = validate({"found": [
+        _f("body.first_line_indent", "cm", 1.25, "отступ абзаца 1,25 см"),
+        _f("body.font_size", "target_pt", 14.0, "кегль 14 пт"),
+        _f("body.line_spacing", "multiple", 1.5, "интервал 1,5 или 1.5 — интервал 1.5."),
+    ], "unsupported": []}, t)
+    assert r["rejected_count"] == 1  # третья цитата не найдена в тексте
+    t2 = "Отступ абзаца 1.25 см."
+    r = validate({"found": [_f("body.first_line_indent", "cm", 1.25, "отступ абзаца 1.25 см")],
+                  "unsupported": []}, t2)
+    assert r["rejected_count"] == 0 and len(r["found"]) == 1
+
+
+def test_number_absent_from_quote_rejected():
+    r = _val([_f("body.line_spacing", "multiple", 1.5, "интервал полуторный")])
+    assert r["found"] == [] and r["rejected_count"] == 1
+
+
+def test_number_not_matched_inside_bigger_number():
+    t = "Размер 140 пт и 21,25 мм, 14,5 пт."
+    for val, quote in ((14, "Размер 140 пт"), (1.25, "и 21,25 мм"), (14, "14,5 пт")):
+        r = validate({"found": [_f("body.font_size", "target_pt", val, quote)],
+                      "unsupported": []}, t)
+        assert r["found"] == [] and r["rejected_count"] == 1, quote
+
+
+def test_unsupported_dedup_against_found():
+    t = "Нумерация страниц по центру вверху страницы. Шрифт 14 пт обязателен."
+    r = validate({
+        "found": [_f("body.font_size", "target_pt", 14, "Шрифт 14 пт обязателен")],
+        "unsupported": [
+            {"text": "дубль", "quote": "ШРИФТ 14 пт обязателен"},
+            {"text": "часть", "quote": "Шрифт 14 пт"},
+            {"text": "шире", "quote": "Шрифт 14 пт обязателен."},
+            {"text": "своё", "quote": "Нумерация страниц по центру вверху"},
+        ],
+    }, t)
+    assert [u["text"] for u in r["unsupported"]] == ["своё"]
+
+
+def test_prompt_rules():
+    system, _ = build_messages("текст")
+    assert "явно" in system and "либо в \"found\", либо в \"unsupported\"" in system
