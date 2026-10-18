@@ -1,3 +1,10 @@
+import { Suspense } from "react";
+import { Wizard } from "@/components/wizard/Wizard";
+
 export default function Home() {
-  return <h1 className="text-2xl font-semibold">Оформление документа по ГОСТ</h1>;
+  return (
+    <Suspense fallback={null}>
+      <Wizard />
+    </Suspense>
+  );
 }

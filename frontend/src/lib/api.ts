@@ -17,7 +17,7 @@ export interface Me {
 }
 
 export interface ProfileSummary {
-  id: number;
+  id: string;
   name: string;
   base: string | null;
   readonly: boolean;
@@ -45,8 +45,13 @@ export interface JobSummary {
 
 export interface Issue {
   rule?: string;
+  source?: string;
   severity?: string;
   message: string;
+  expected?: string | null;
+  actual?: string | null;
+  paragraph_index?: number | null;
+  fixable?: boolean;
   location?: string | null;
   [key: string]: unknown;
 }
@@ -54,6 +59,7 @@ export interface Issue {
 export interface Report {
   issues?: Issue[];
   warnings?: string[];
+  summary?: { errors?: number; recommendations?: number };
   [key: string]: unknown;
 }
 
