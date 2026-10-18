@@ -1,0 +1,123 @@
+{
+  "id": "gost-2.105-2019",
+  "name": "ГОСТ 2.105-2019 — Текстовые документы",
+  "base": null,
+  "readonly": true,
+  "rules": {
+    "page.size": {
+      "value": {
+        "format": "A4",
+        "orientation": "portrait"
+      },
+      "severity": "error",
+      "enabled": true,
+      "source": "ГОСТ 2.105-2019, п. 6.1.1 (формат А4); требует сверки: номер пункта; не проверяется: допустимость А3 и других форматов"
+    },
+    "page.margins": {
+      "value": {
+        "top_mm": 20,
+        "bottom_mm": 20,
+        "left_mm": 20,
+        "right_mm": 10
+      },
+      "severity": "error",
+      "enabled": true,
+      "source": "ГОСТ 2.105-2019, п. 6.1.? : левое не менее 20 мм, правое не менее 10 мм, верхнее и нижнее не менее 20 мм; требует сверки: номер пункта и минимальные значения полей; не проверяется: «не менее» (проверяется точное значение)"
+    },
+    "body.font_name": {
+      "value": {
+        "name": "Times New Roman"
+      },
+      "severity": "recommendation",
+      "enabled": true,
+      "source": "ГОСТ 2.105-2019, п. 6.1.?; требует сверки: рекомендуемая гарнитура (Times New Roman); не проверяется: стандарт допускает иные гарнитуры, кроме декоративных"
+    },
+    "body.font_size": {
+      "value": {
+        "min_pt": 12,
+        "target_pt": 14
+      },
+      "severity": "error",
+      "enabled": true,
+      "source": "ГОСТ 2.105-2019, п. 6.1.?; требует сверки: кегль 12–14 пт (по ГОСТ 2.304 высота букв не менее 1,8 мм)"
+    },
+    "body.line_spacing": {
+      "value": {
+        "multiple": 1.5
+      },
+      "severity": "error",
+      "enabled": true,
+      "source": "ГОСТ 2.105-2019, п. 6.1.?; требует сверки: полуторный межстрочный интервал"
+    },
+    "body.first_line_indent": {
+      "value": {
+        "cm": 1.25
+      },
+      "severity": "error",
+      "enabled": true,
+      "source": "ГОСТ 2.105-2019, п. 6.1.?: абзацный отступ 1,25 см; требует сверки: номер пункта"
+    },
+    "body.alignment": {
+      "value": {
+        "align": "justify"
+      },
+      "severity": "recommendation",
+      "enabled": true,
+      "source": "ГОСТ 2.105-2019, п. 6.1.?; требует сверки: выравнивание по ширине (стандарт прямо не требует; рекомендация)"
+    },
+    "headings.section": {
+      "value": {
+        "bold": false,
+        "align": "left",
+        "first_line_indent_cm": 1.25,
+        "trailing_period": false,
+        "page_break_before_level1": false
+      },
+      "severity": "error",
+      "enabled": true,
+      "source": "ГОСТ 2.105-2019, п. 6.2.?: заголовки разделов с абзацного отступа, с прописной буквы, без точки в конце, без подчёркивания; требует сверки: номер пункта, обязательность начала раздела с новой страницы (не требуется), полужирное начертание (не требуется); не проверяется: перенос слов в заголовках"
+    },
+    "headings.structural": {
+      "value": {
+        "bold": false,
+        "align": "center",
+        "uppercase": true,
+        "trailing_period": false,
+        "page_break_before": false
+      },
+      "severity": "error",
+      "enabled": true,
+      "source": "ГОСТ 2.105-2019, п. 6.2.?: структурные элементы («СОДЕРЖАНИЕ», «ВВЕДЕНИЕ» и др.) по центру прописными без точки; требует сверки: номер пункта и регистр; не проверяется: нумерация структурных элементов"
+    },
+    "captions.figure": {
+      "value": {
+        "pattern": "Рисунок {n} – {title}",
+        "position": "below",
+        "align": "center"
+      },
+      "severity": "error",
+      "enabled": true,
+      "source": "ГОСТ 2.105-2019, п. 6.5.?: «Рисунок N – Наименование» под рисунком, по центру; требует сверки: номер пункта, знак тире (в стандарте «–»)"
+    },
+    "captions.table": {
+      "value": {
+        "pattern": "Таблица {n} – {title}",
+        "position": "above",
+        "align": "left",
+        "first_line_indent_cm": 0
+      },
+      "severity": "error",
+      "enabled": true,
+      "source": "ГОСТ 2.105-2019, п. 6.6.?: «Таблица N – Наименование» над таблицей, слева без абзацного отступа; требует сверки: номер пункта"
+    },
+    "page_numbers": {
+      "value": {
+        "position": "bottom_center",
+        "show_on_first": false
+      },
+      "severity": "error",
+      "enabled": true,
+      "source": "ГОСТ 2.105-2019, п. 6.1.?: арабские цифры, нумерация сквозная, номер на титульном листе не проставляют; требует сверки: расположение номера (по стандарту — по ГОСТ 2.104, в нижней части листа по центру); не проверяется: листы с основной надписью и рамкой (ГОСТ 2.104)"
+    }
+  }
+}
