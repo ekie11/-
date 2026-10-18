@@ -42,6 +42,7 @@ export const RULE_LABELS: Record<string, string> = {
   "captions.figure": "Подпись рисунка",
   "captions.table": "Заголовок таблицы",
   "page_numbers": "Номер страницы",
+  toc: "Оглавление",
 };
 
 const ALIGN = [
@@ -105,6 +106,14 @@ export const FIELDS: FieldDef[] = [
     options: [{ value: "false", label: "не ставится" }],
   },
   bool("headings.structural", "page_break_before", "structure", "Требовать начало с новой страницы"),
+  {
+    rule: "toc", path: "levels", group: "structure", label: "Уровни оглавления", kind: "fixed",
+    options: [{ value: "3", label: "3 уровня" }],
+  },
+  {
+    rule: "toc", path: "hyperlinks", group: "structure", label: "Ссылки в оглавлении", kind: "fixed",
+    options: [{ value: "true", label: "Да" }],
+  },
   {
     rule: "page_numbers", path: "position", group: "numbering", label: "Положение", kind: "fixed",
     options: [{ value: "bottom_center", label: "внизу по центру" }],
