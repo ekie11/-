@@ -1,0 +1,20 @@
+# Сейчас: домена нет, работаем по HTTP на IP сервера.
+:80 {
+	request_body {
+		max_size 22MB
+	}
+	reverse_proxy frontend:3000
+}
+
+# Позже, когда появится домен (A-запись на IP сервера):
+# 1) удалите блок ":80 { ... }" выше и раскомментируйте блок ниже;
+# 2) в .env поставьте COOKIE_SECURE=true;
+# 3) docker compose up -d
+# Caddy сам получит и будет продлевать сертификат Let's Encrypt.
+#
+# example.ru {
+# 	request_body {
+# 		max_size 22MB
+# 	}
+# 	reverse_proxy frontend:3000
+# }

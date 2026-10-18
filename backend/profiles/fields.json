@@ -1,0 +1,622 @@
+{
+  "groups": [
+    {
+      "id": "page",
+      "label": "Страница"
+    },
+    {
+      "id": "body",
+      "label": "Основной текст"
+    },
+    {
+      "id": "headings",
+      "label": "Заголовки"
+    },
+    {
+      "id": "structure",
+      "label": "Структура"
+    },
+    {
+      "id": "numbering",
+      "label": "Нумерация страниц"
+    },
+    {
+      "id": "captions",
+      "label": "Рисунки и таблицы"
+    },
+    {
+      "id": "formulas",
+      "label": "Формулы"
+    },
+    {
+      "id": "lists",
+      "label": "Списки"
+    },
+    {
+      "id": "sources",
+      "label": "Источники"
+    },
+    {
+      "id": "typography",
+      "label": "Типографика"
+    }
+  ],
+  "rule_labels": {
+    "page.size": "Размер страницы",
+    "page.margins": "Поля",
+    "body.font_name": "Шрифт",
+    "body.font_size": "Размер шрифта",
+    "body.line_spacing": "Межстрочный интервал",
+    "body.first_line_indent": "Абзацный отступ",
+    "body.alignment": "Выравнивание текста",
+    "headings.section": "Заголовки разделов",
+    "headings.structural": "Структурные заголовки",
+    "captions.figure": "Подпись рисунка",
+    "captions.table": "Заголовок таблицы",
+    "page_numbers": "Номер страницы",
+    "toc": "Оглавление"
+  },
+  "fields": [
+    {
+      "rule": "page.size",
+      "path": "format",
+      "group": "page",
+      "label": "Формат",
+      "kind": "fixed",
+      "options": [
+        {
+          "value": "A4",
+          "label": "A4"
+        }
+      ]
+    },
+    {
+      "rule": "page.size",
+      "path": "orientation",
+      "group": "page",
+      "label": "Ориентация",
+      "kind": "select",
+      "options": [
+        {
+          "value": "portrait",
+          "label": "книжная",
+          "evidence": [
+            "книжн"
+          ]
+        },
+        {
+          "value": "landscape",
+          "label": "альбомная",
+          "evidence": [
+            "альбомн"
+          ]
+        }
+      ]
+    },
+    {
+      "rule": "page.margins",
+      "path": "top_mm",
+      "group": "page",
+      "label": "Верхнее поле",
+      "kind": "number",
+      "unit": "мм",
+      "min": 0,
+      "max": 50,
+      "step": 1
+    },
+    {
+      "rule": "page.margins",
+      "path": "bottom_mm",
+      "group": "page",
+      "label": "Нижнее поле",
+      "kind": "number",
+      "unit": "мм",
+      "min": 0,
+      "max": 50,
+      "step": 1
+    },
+    {
+      "rule": "page.margins",
+      "path": "left_mm",
+      "group": "page",
+      "label": "Левое поле",
+      "kind": "number",
+      "unit": "мм",
+      "min": 0,
+      "max": 50,
+      "step": 1
+    },
+    {
+      "rule": "page.margins",
+      "path": "right_mm",
+      "group": "page",
+      "label": "Правое поле",
+      "kind": "number",
+      "unit": "мм",
+      "min": 0,
+      "max": 50,
+      "step": 1
+    },
+    {
+      "rule": "body.font_name",
+      "path": "name",
+      "group": "body",
+      "label": "Гарнитура",
+      "kind": "text"
+    },
+    {
+      "rule": "body.font_size",
+      "path": "min_pt",
+      "group": "body",
+      "label": "Минимальный кегль",
+      "kind": "number",
+      "unit": "пт",
+      "min": 8,
+      "max": 20,
+      "step": 0.5
+    },
+    {
+      "rule": "body.font_size",
+      "path": "target_pt",
+      "group": "body",
+      "label": "Основной кегль",
+      "kind": "number",
+      "unit": "пт",
+      "min": 8,
+      "max": 20,
+      "step": 0.5
+    },
+    {
+      "rule": "body.line_spacing",
+      "path": "multiple",
+      "group": "body",
+      "label": "Интервал",
+      "kind": "number",
+      "unit": "×",
+      "min": 1,
+      "max": 3,
+      "step": 0.05
+    },
+    {
+      "rule": "body.first_line_indent",
+      "path": "cm",
+      "group": "body",
+      "label": "Отступ первой строки",
+      "kind": "number",
+      "unit": "см",
+      "min": 0,
+      "max": 3,
+      "step": 0.05
+    },
+    {
+      "rule": "body.alignment",
+      "path": "align",
+      "group": "body",
+      "label": "Выравнивание",
+      "kind": "select",
+      "options": [
+        {
+          "value": "justify",
+          "label": "по ширине",
+          "evidence": [
+            "ширин"
+          ]
+        },
+        {
+          "value": "left",
+          "label": "по левому краю",
+          "evidence": [
+            "слев",
+            "левому",
+            "левого",
+            "по левому"
+          ]
+        },
+        {
+          "value": "center",
+          "label": "по центру",
+          "evidence": [
+            "центр",
+            "посередин"
+          ]
+        },
+        {
+          "value": "right",
+          "label": "по правому краю",
+          "evidence": [
+            "справ",
+            "правому"
+          ]
+        }
+      ]
+    },
+    {
+      "rule": "headings.section",
+      "path": "bold",
+      "group": "headings",
+      "label": "Требовать жирный шрифт",
+      "kind": "bool"
+    },
+    {
+      "rule": "headings.section",
+      "path": "align",
+      "group": "headings",
+      "label": "Выравнивание",
+      "kind": "select",
+      "options": [
+        {
+          "value": "justify",
+          "label": "по ширине",
+          "evidence": [
+            "ширин"
+          ]
+        },
+        {
+          "value": "left",
+          "label": "по левому краю",
+          "evidence": [
+            "слев",
+            "левому",
+            "левого",
+            "по левому"
+          ]
+        },
+        {
+          "value": "center",
+          "label": "по центру",
+          "evidence": [
+            "центр",
+            "посередин"
+          ]
+        },
+        {
+          "value": "right",
+          "label": "по правому краю",
+          "evidence": [
+            "справ",
+            "правому"
+          ]
+        }
+      ]
+    },
+    {
+      "rule": "headings.section",
+      "path": "first_line_indent_cm",
+      "group": "headings",
+      "label": "Отступ первой строки",
+      "kind": "number",
+      "unit": "см",
+      "min": 0,
+      "max": 3,
+      "step": 0.05
+    },
+    {
+      "rule": "headings.section",
+      "path": "trailing_period",
+      "group": "headings",
+      "label": "Точка в конце заголовка",
+      "kind": "fixed",
+      "options": [
+        {
+          "value": "false",
+          "label": "не ставится"
+        }
+      ]
+    },
+    {
+      "rule": "headings.section",
+      "path": "page_break_before_level1",
+      "group": "headings",
+      "label": "Требовать начало раздела с новой страницы",
+      "kind": "bool"
+    },
+    {
+      "rule": "headings.structural",
+      "path": "bold",
+      "group": "structure",
+      "label": "Требовать жирный шрифт",
+      "kind": "bool"
+    },
+    {
+      "rule": "headings.structural",
+      "path": "align",
+      "group": "structure",
+      "label": "Выравнивание",
+      "kind": "select",
+      "options": [
+        {
+          "value": "justify",
+          "label": "по ширине",
+          "evidence": [
+            "ширин"
+          ]
+        },
+        {
+          "value": "left",
+          "label": "по левому краю",
+          "evidence": [
+            "слев",
+            "левому",
+            "левого",
+            "по левому"
+          ]
+        },
+        {
+          "value": "center",
+          "label": "по центру",
+          "evidence": [
+            "центр",
+            "посередин"
+          ]
+        },
+        {
+          "value": "right",
+          "label": "по правому краю",
+          "evidence": [
+            "справ",
+            "правому"
+          ]
+        }
+      ]
+    },
+    {
+      "rule": "headings.structural",
+      "path": "uppercase",
+      "group": "structure",
+      "label": "Требовать ПРОПИСНЫЕ буквы",
+      "kind": "bool"
+    },
+    {
+      "rule": "headings.structural",
+      "path": "trailing_period",
+      "group": "structure",
+      "label": "Точка в конце заголовка",
+      "kind": "fixed",
+      "options": [
+        {
+          "value": "false",
+          "label": "не ставится"
+        }
+      ]
+    },
+    {
+      "rule": "headings.structural",
+      "path": "page_break_before",
+      "group": "structure",
+      "label": "Требовать начало с новой страницы",
+      "kind": "bool"
+    },
+    {
+      "rule": "toc",
+      "path": "levels",
+      "group": "structure",
+      "label": "Уровни оглавления",
+      "kind": "fixed",
+      "options": [
+        {
+          "value": "3",
+          "label": "3 уровня"
+        }
+      ]
+    },
+    {
+      "rule": "toc",
+      "path": "hyperlinks",
+      "group": "structure",
+      "label": "Ссылки в оглавлении",
+      "kind": "fixed",
+      "options": [
+        {
+          "value": "true",
+          "label": "Да"
+        }
+      ]
+    },
+    {
+      "rule": "page_numbers",
+      "path": "position",
+      "group": "numbering",
+      "label": "Положение",
+      "kind": "select",
+      "options": [
+        {
+          "value": "bottom_center",
+          "label": "внизу по центру",
+          "evidence": [
+            "внизу",
+            "нижн"
+          ]
+        },
+        {
+          "value": "top_center",
+          "label": "вверху по центру",
+          "evidence": [
+            "вверху",
+            "верхн"
+          ]
+        }
+      ]
+    },
+    {
+      "rule": "page_numbers",
+      "path": "show_on_first",
+      "group": "numbering",
+      "label": "Номер на первой странице",
+      "kind": "bool"
+    },
+    {
+      "rule": "captions.figure",
+      "path": "pattern",
+      "group": "captions",
+      "label": "Шаблон подписи рисунка",
+      "kind": "text"
+    },
+    {
+      "rule": "captions.figure",
+      "path": "position",
+      "group": "captions",
+      "label": "Положение подписи рисунка",
+      "kind": "fixed",
+      "options": [
+        {
+          "value": "below",
+          "label": "под рисунком"
+        }
+      ]
+    },
+    {
+      "rule": "captions.figure",
+      "path": "align",
+      "group": "captions",
+      "label": "Выравнивание подписи рисунка",
+      "kind": "select",
+      "options": [
+        {
+          "value": "justify",
+          "label": "по ширине",
+          "evidence": [
+            "ширин"
+          ]
+        },
+        {
+          "value": "left",
+          "label": "по левому краю",
+          "evidence": [
+            "слев",
+            "левому",
+            "левого",
+            "по левому"
+          ]
+        },
+        {
+          "value": "center",
+          "label": "по центру",
+          "evidence": [
+            "центр",
+            "посередин"
+          ]
+        },
+        {
+          "value": "right",
+          "label": "по правому краю",
+          "evidence": [
+            "справ",
+            "правому"
+          ]
+        }
+      ]
+    },
+    {
+      "rule": "captions.table",
+      "path": "pattern",
+      "group": "captions",
+      "label": "Шаблон заголовка таблицы",
+      "kind": "text"
+    },
+    {
+      "rule": "captions.table",
+      "path": "position",
+      "group": "captions",
+      "label": "Положение заголовка таблицы",
+      "kind": "fixed",
+      "options": [
+        {
+          "value": "above",
+          "label": "над таблицей"
+        }
+      ]
+    },
+    {
+      "rule": "captions.table",
+      "path": "align",
+      "group": "captions",
+      "label": "Выравнивание заголовка таблицы",
+      "kind": "select",
+      "options": [
+        {
+          "value": "justify",
+          "label": "по ширине",
+          "evidence": [
+            "ширин"
+          ]
+        },
+        {
+          "value": "left",
+          "label": "по левому краю",
+          "evidence": [
+            "слев",
+            "левому",
+            "левого",
+            "по левому"
+          ]
+        },
+        {
+          "value": "center",
+          "label": "по центру",
+          "evidence": [
+            "центр",
+            "посередин"
+          ]
+        },
+        {
+          "value": "right",
+          "label": "по правому краю",
+          "evidence": [
+            "справ",
+            "правому"
+          ]
+        }
+      ]
+    },
+    {
+      "rule": "captions.table",
+      "path": "first_line_indent_cm",
+      "group": "captions",
+      "label": "Отступ заголовка таблицы",
+      "kind": "number",
+      "unit": "см",
+      "min": 0,
+      "max": 3,
+      "step": 0.05
+    },
+    {
+      "rule": "bibliography",
+      "path": "standard",
+      "group": "sources",
+      "label": "Стандарт оформления",
+      "kind": "fixed",
+      "options": [
+        {
+          "value": "7.0.100-2018",
+          "label": "ГОСТ Р 7.0.100-2018"
+        }
+      ]
+    },
+    {
+      "rule": "bibliography",
+      "path": "order",
+      "group": "sources",
+      "label": "Порядок источников",
+      "kind": "fixed",
+      "options": [
+        {
+          "value": "mention",
+          "label": "по порядку упоминания"
+        }
+      ]
+    },
+    {
+      "rule": "bibliography",
+      "path": "citation_format",
+      "group": "sources",
+      "label": "Формат ссылки",
+      "kind": "fixed",
+      "options": [
+        {
+          "value": "[N]",
+          "label": "[N]"
+        }
+      ]
+    }
+  ]
+}

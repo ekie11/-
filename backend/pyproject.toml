@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gostdoc-engine"
+version = "0.1.0"
+description = "Проверка и оформление DOCX по ГОСТ"
+requires-python = ">=3.12"
+dependencies = [
+    "python-docx>=1.2",
+    "lxml",
+    "pydantic>=2",
+    "fastapi",
+    "uvicorn[standard]",
+    "sqlalchemy>=2",
+    "alembic",
+    "argon2-cffi",
+    "rq",
+    "redis",
+    "python-multipart",
+    "psycopg[binary]>=3.1",
+    "httpx",
+    "pypdf",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff", "httpx", "fakeredis"]
+
+[tool.setuptools.packages.find]
+include = ["gostdoc_engine*", "gostdoc_api*"]
+
+[tool.setuptools.package-data]
+gostdoc_api = ["migrations/*.py", "migrations/versions/*.py", "migrations/*.mako"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["soffice: needs LibreOffice"]
+
+[tool.ruff]
+line-length = 100

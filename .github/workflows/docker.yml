@@ -1,0 +1,36 @@
+name: Docker
+
+on:
+  pull_request:
+    paths:
+      - "backend/Dockerfile"
+      - "frontend/Dockerfile"
+      - "docker-compose.yml"
+      - "Caddyfile"
+      - ".dockerignore"
+      - "backend/pyproject.toml"
+      - "frontend/package*.json"
+      - ".github/workflows/docker.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Проверка compose
+        run: POSTGRES_PASSWORD=ci docker compose config -q
+      - name: Сборка backend (без push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/Dockerfile
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Сборка frontend (без push)
+        uses: docker/build-push-action@v6
+        with:
+          context: frontend
+          push: false
+          build-args: API_URL=http://api:8000
