@@ -40,3 +40,32 @@ def test_check_entry_ok_and_problems():
     msgs = check_entry(Entry(3, "Иванов И. Статья 2020", 0))
     assert any("нет выходных данных" in m for m in msgs)
     assert check_entry(Entry(4, "Иванов И. Статья // Журнал. — 2020. — № 1.", 0)) == []
+
+
+def test_toc_line_does_not_start_section():
+    from gostdoc_engine.model import Role
+    doc = analyze(build_docx([("p", "Список литературы"), ("p", "Текст.")]))
+    doc.paragraphs[0].role = Role.TOC
+    assert find_section(doc) is None
+
+
+def test_continuation_with_number_like_start():
+    sec = section([("structural", "СПИСОК ЛИТЕРАТУРЫ"), ("source", "1. Иванов И. Книга. — М. : Наука,"),
+                   ("source", "1999. — 300 с."), ("source", f"2. {BOOK}")])
+    entries = parse_entries(sec)
+    assert [e.number for e in entries] == [1, 2]
+    assert "1999. — 300 с." in entries[0].text
+
+
+def test_real_gap_still_new_entry_numbers():
+    sec = section([("structural", "СПИСОК ЛИТЕРАТУРЫ"), ("source", f"1. {BOOK}"),
+                   ("source", f"2. {BOOK}"), ("source", f"4. {BOOK}")])
+    assert [e.number for e in parse_entries(sec)] == [1, 2, 4]
+
+
+def test_entries_not_headings():
+    from gostdoc_engine.model import Role
+    m = analyze(build_docx([
+        ("structural", "СПИСОК ЛИТЕРАТУРЫ"), ("source", "1. Иванов И. И. Название"),
+        ("source", "2. Петров П. П. Другое"), ("structural", "ПРИЛОЖЕНИЕ А")]))
+    assert [p.role for p in m.paragraphs[1:3]] == [Role.LIST_ITEM] * 2

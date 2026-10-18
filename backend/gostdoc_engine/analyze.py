@@ -16,10 +16,21 @@ STRUCTURAL_NAMES: frozenset[str] = frozenset(
         "ВВЕДЕНИЕ",
         "ЗАКЛЮЧЕНИЕ",
         "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ",
+        "СПИСОК ЛИТЕРАТУРЫ",
+        "БИБЛИОГРАФИЧЕСКИЙ СПИСОК",
+        "СПИСОК ИСПОЛЬЗОВАННОЙ ЛИТЕРАТУРЫ",
         "ПРИЛОЖЕНИЕ",
     }
 )
 
+REFERENCE_TITLES: frozenset[str] = frozenset(
+    {
+        "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ",
+        "СПИСОК ЛИТЕРАТУРЫ",
+        "БИБЛИОГРАФИЧЕСКИЙ СПИСОК",
+        "СПИСОК ИСПОЛЬЗОВАННОЙ ЛИТЕРАТУРЫ",
+    }
+)
 _APPENDIX = re.compile(r"^ПРИЛОЖЕНИЕ\s+[А-ЯЁA-Z]$")
 _FIGURE = re.compile(r"^(Рисунок\s+\d|Рис\.\s*\d)", re.IGNORECASE)
 _TABLE = re.compile(r"^Таблица\s+\d", re.IGNORECASE)
@@ -141,4 +152,12 @@ def analyze(doc) -> DocModel:
                 break
             if p.role not in (Role.EMPTY, Role.IN_TABLE):
                 p.role = Role.TOC
+
+    # Записи списка источников («1. Иванов …») — не заголовки
+    in_refs = False
+    for p in items:
+        if p.role == Role.STRUCTURAL:
+            in_refs = norm(p) in REFERENCE_TITLES
+        elif in_refs and p.role in (Role.HEADING_1, Role.HEADING_2, Role.HEADING_3):
+            p.role = Role.LIST_ITEM
     return DocModel(doc=doc, paragraphs=items)

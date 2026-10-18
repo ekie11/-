@@ -265,3 +265,16 @@ def test_body_final_period_drop_detected():
     before = normalized_words(analyze(d))
     d.paragraphs[0].runs[0].text = "Обычный текст"
     assert normalized_words(analyze(d)) != before
+
+
+def test_reference_entries_not_formatted_as_headings():
+    blocks = [("structural", "введение"), ("p", "Текст."),
+              ("structural", "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ"),
+              ("source", "1. Иванов И. И. Название"), ("source", "2. Петров П. П. Другое")]
+    res = process(save(build_docx(blocks)), P, "format")
+    assert not [i for i in res.report["issues"]
+                if i["rule"].startswith("headings.section")]
+    out = docx.Document(io.BytesIO(res.docx_bytes))
+    for par in out.paragraphs[-2:]:
+        assert not par.paragraph_format.page_break_before
+        assert not any(r.bold for r in par.runs)

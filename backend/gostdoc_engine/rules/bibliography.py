@@ -34,7 +34,7 @@ class BibliographyRule(Rule):
                 entry.number = pos
             if entry.number != prev + 1:
                 issues.append(issue(
-                    f"Нумерация источников нарушена: после {prev} идёт {entry.number}",
+                    f"Источник {entry.number}: нарушена нумерация, ожидался номер {prev + 1}",
                     entry.paragraph_index))
             prev = entry.number
             for msg in check_entry(entry):

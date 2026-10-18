@@ -3,20 +3,13 @@
 import re
 from dataclasses import dataclass
 
+from .analyze import REFERENCE_TITLES as SECTION_TITLES
 from .model import DocModel, DocParagraph, Role
-
-SECTION_TITLES: frozenset[str] = frozenset(
-    {
-        "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ",
-        "СПИСОК ЛИТЕРАТУРЫ",
-        "БИБЛИОГРАФИЧЕСКИЙ СПИСОК",
-        "СПИСОК ИСПОЛЬЗОВАННОЙ ЛИТЕРАТУРЫ",
-    }
-)
 
 _NUM_START = re.compile(r"^\s*(\d+)[.)]\s")
 _YEAR = re.compile(r"\b(1[89]|20)\d{2}\b")
 _ACCESS = re.compile(r"\(дата обращения:\s*\d{2}\.\d{2}\.\d{4}\)", re.IGNORECASE)
+_URL = re.compile(r"https?://|URL:")
 _OLD_ELECTRONIC = re.compile(r"\[Электронный ресурс\]", re.IGNORECASE)
 
 
@@ -34,7 +27,7 @@ def _norm(text: str) -> str:
 def find_section(model: DocModel) -> list[DocParagraph] | None:
     start = next(
         (i for i, p in enumerate(model.paragraphs)
-         if p.role != Role.IN_TABLE and _norm(p.text) in SECTION_TITLES),
+         if p.role == Role.STRUCTURAL and _norm(p.text) in SECTION_TITLES),
         None,
     )
     if start is None:
@@ -48,12 +41,23 @@ def find_section(model: DocModel) -> list[DocParagraph] | None:
     return out
 
 
+def _complete(text: str) -> bool:
+    return text.rstrip().endswith((".", ";"))
+
+
 def parse_entries(paragraphs: list[DocParagraph]) -> list[Entry]:
     entries: list[Entry] = []
     for p in paragraphs:
         m = _NUM_START.match(p.text)
-        if m or p.role == Role.LIST_ITEM or not entries:
-            entries.append(Entry(int(m.group(1)) if m else None, p.text.strip(), p.index))
+        num = int(m.group(1)) if m else None
+        prev = entries[-1].number if entries else None
+        starts = (
+            not entries
+            or p.role == Role.LIST_ITEM
+            or (num is not None and num <= 999 and (prev is None or num == prev + 1 or _complete(entries[-1].text)))
+        )
+        if starts:
+            entries.append(Entry(num, p.text.strip(), p.index))
         else:
             entries[-1].text += " " + p.text.strip()
     return entries
@@ -65,7 +69,7 @@ def check_entry(entry: Entry) -> list[str]:
     msgs = []
     if not _YEAR.search(text):
         msgs.append(f"{label}: нет года издания")
-    electronic = "URL:" in text or "http" in text
+    electronic = bool(_URL.search(text))
     if electronic:
         if not _ACCESS.search(text):
             msgs.append(f"{label}: у электронного ресурса нет даты обращения")
