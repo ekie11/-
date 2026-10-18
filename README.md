@@ -29,6 +29,10 @@
 профили, список документов. Как запустить вместе с API и как гонять сквозные
 Playwright-тесты — в [frontend/README.md](frontend/README.md).
 
+Если API стоит за Next (rewrite `/api`), задайте `TRUSTED_PROXIES` с адресом хоста
+Next (например `TRUSTED_PROXIES=127.0.0.1/32`), иначе все гости получат IP прокси
+и общий лимит.
+
 ## Документы проекта
 
 - Спецификация: [docs/specs/2026-10-15-gost-formatter-design.md](docs/specs/2026-10-15-gost-formatter-design.md)

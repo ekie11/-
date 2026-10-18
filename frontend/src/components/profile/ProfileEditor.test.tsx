@@ -93,6 +93,21 @@ describe("ProfileEditor", () => {
     expect((screen.getByLabelText("Левое поле") as HTMLInputElement).value).toBe("0");
   });
 
+  it("фиксированное поле без значения показывает вариант по умолчанию без предупреждения", async () => {
+    apiFetch.mockImplementation(async (path: string) => {
+      if (path === "/profiles/own") {
+        const p = structuredClone(OWN) as typeof OWN & { rules: Record<string, unknown> };
+        p.rules["captions.figure"] = R({ pattern: "Рисунок {n} — {title}", align: "center" });
+        return p;
+      }
+      return structuredClone(GOST);
+    });
+    render(<ProfileEditor id="own" />);
+    await userEvent.click(await screen.findByRole("button", { name: /Рисунки и таблицы/ }));
+    expect(screen.getByText("под рисунком", { selector: "[data-fixed]" })).toBeInTheDocument();
+    expect(screen.queryByText(/Это значение не поддерживается/)).toBeNull();
+  });
+
   it("неподдерживаемое сохранённое значение не скрывается", async () => {
     apiFetch.mockImplementation(async (path: string) => {
       if (path === "/profiles/own") {

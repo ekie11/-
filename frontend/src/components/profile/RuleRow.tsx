@@ -88,9 +88,9 @@ export function RuleRow({ ruleId, fields, rule, baseRule, disabled, onChange }: 
                 <div className="flex flex-col gap-1">
                   <span className="text-sm text-muted">{f.label}</span>
                   <span className="text-sm" data-fixed={f.path}>
-                    {f.options?.find((o) => o.value === String(v))?.label ?? String(v)}
+                    {v === undefined ? f.options?.[0]?.label : (f.options?.find((o) => o.value === String(v))?.label ?? String(v))}
                   </span>
-                  {!f.options?.some((o) => o.value === String(v)) && (
+                  {v !== undefined && !f.options?.some((o) => o.value === String(v)) && (
                     <span role="alert" className="text-xs text-red-700">
                       Это значение не поддерживается — будет использовано: {f.options?.[0]?.label}
                     </span>

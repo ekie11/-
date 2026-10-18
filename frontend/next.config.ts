@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  agentRules: false,
+  // API принимает файлы до 20 МБ; по умолчанию Next режет проксируемое тело на 10 МБ.
+  experimental: { proxyClientMaxBodySize: "21mb" },
   async rewrites() {
     return [
       {
