@@ -2,9 +2,15 @@
 
 import { useRef, useState } from "react";
 
-type Props = { file: File | null; error: string | null; onFile: (file: File) => void };
+type Props = {
+  file: File | null;
+  error: string | null;
+  onFile: (file: File) => void;
+  accept?: string;
+  linkLabel?: string;
+};
 
-export function FileDrop({ file, error, onFile }: Props) {
+export function FileDrop({ file, error, onFile, accept = ".docx", linkLabel = "Выбрать файл .docx" }: Props) {
   const input = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
 
@@ -26,13 +32,13 @@ export function FileDrop({ file, error, onFile }: Props) {
       >
         <p className="text-muted">Перетащите файл сюда или выберите на компьютере</p>
         <label htmlFor="docx-file" className="cursor-pointer text-accent underline underline-offset-2">
-          Выбрать файл .docx
+          {linkLabel}
         </label>
         <input
           ref={input}
           id="docx-file"
           type="file"
-          accept=".docx"
+          accept={accept}
           className="sr-only"
           onChange={(e) => {
             const f = e.target.files?.[0];

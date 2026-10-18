@@ -40,6 +40,15 @@ export COOKIE_SECURE=false
 export SOFFICE_PATH="$TMP/soffice"
 export JOB_TIMEOUT_S=60
 
+# Заглушка модели для извлечения требований из методички.
+LLM_PORT="$("$PYTHON" -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1])')"
+"$PYTHON" "$ROOT/frontend/e2e/fake_llm.py" "$LLM_PORT" &
+PIDS+=("$!")
+export LLM_BASE_URL="http://127.0.0.1:$LLM_PORT"
+export LLM_API_KEY="e2e-dummy-key"
+export NO_PROXY="127.0.0.1,localhost${NO_PROXY:+,$NO_PROXY}"
+export no_proxy="$NO_PROXY"
+
 redis-server --port "$REDIS_PORT" --bind 127.0.0.1 --save "" --appendonly no --dir "$TMP" >"$TMP/redis.log" 2>&1 &
 REDIS_PID=$!
 PIDS+=("$REDIS_PID")

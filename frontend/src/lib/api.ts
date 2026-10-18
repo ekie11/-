@@ -110,3 +110,22 @@ export function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
 export function apiUpload<T>(path: string, form: FormData): Promise<T> {
   return request<T>(path, { method: "POST", body: form });
 }
+
+export type ExtractionStatus = "queued" | "running" | "done" | "failed";
+
+export interface Extraction {
+  id: string;
+  status: ExtractionStatus;
+  base_profile_id: string;
+  source_name: string | null;
+  result: import("@/components/extraction/ResultTable").ExtractionResult | null;
+  error: string | null;
+}
+
+export const api = {
+  createExtraction: (form: FormData) => apiUpload<{ id: string }>("/extractions", form),
+  getExtraction: (id: string) => apiFetch<Extraction>(`/extractions/${id}`),
+  getQuota: () => apiFetch<{ used: number; limit: number }>("/extractions/quota"),
+  createProfileFromExtraction: (id: string, body: { accepted: number[]; name: string }) =>
+    apiFetch<{ profile_id: string }>(`/extractions/${id}/profile`, { method: "POST", body: JSON.stringify(body) }),
+};

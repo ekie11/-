@@ -10,6 +10,7 @@ vi.mock("next/navigation", () => ({
 }));
 const apiFetch = vi.fn();
 const apiUpload = vi.fn();
+let enabled = true;
 vi.mock("@/lib/api", async (orig) => ({
   ...(await orig<typeof import("@/lib/api")>()),
   apiFetch: (...a: unknown[]) => apiFetch(...a),
@@ -22,8 +23,11 @@ beforeEach(() => {
   push.mockReset();
   search = "return=wizard";
   apiUpload.mockReset().mockResolvedValue({ id: "imp" });
-  apiFetch.mockReset().mockImplementation(async (_p: string, init?: RequestInit) =>
-    init?.method === "POST"
+  enabled = true;
+  apiFetch.mockReset().mockImplementation(async (p: string, init?: RequestInit) =>
+    p === "/profile-fields"
+      ? { groups: [], rule_labels: {}, fields: [], extraction_enabled: enabled }
+      : init?.method === "POST"
       ? { id: "new" }
       : [
           { id: "gost", name: "ГОСТ 7.32-2017", base: null, readonly: true },
@@ -51,5 +55,16 @@ describe("ProfilesList", () => {
     await screen.findByRole("link", { name: "Мой" });
     await userEvent.upload(screen.getByLabelText("Файл профиля (JSON)"), new File(["{}"], "p.json", { type: "application/json" }));
     await waitFor(() => expect(push).toHaveBeenCalledWith("/profiles/imp?return=wizard"));
+  });
+  it("кнопка «Создать из методички» — только если функция включена", async () => {
+    render(<ProfilesList />);
+    expect(await screen.findByRole("link", { name: "Создать из методички" })).toHaveAttribute("href", "/profiles/from-guideline");
+  });
+  it("кнопка скрыта при extraction_enabled=false", async () => {
+    enabled = false;
+    render(<ProfilesList />);
+    await screen.findByRole("link", { name: "Мой" });
+    await waitFor(() => expect(apiFetch).toHaveBeenCalledWith("/profile-fields"));
+    expect(screen.queryByRole("link", { name: "Создать из методички" })).toBeNull();
   });
 });

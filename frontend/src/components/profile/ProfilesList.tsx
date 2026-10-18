@@ -8,10 +8,12 @@ import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Select } from "@/components/ui/Select";
 import { TextField } from "@/components/ui/TextField";
 import { ApiError, apiFetch, apiUpload, type Profile, type ProfileSummary } from "@/lib/api";
+import { useProfileFields } from "@/lib/fields";
 
 export function ProfilesList() {
   const router = useRouter();
   const ret = useSearchParams().get("return") === "wizard" ? "?return=wizard" : "";
+  const pf = useProfileFields();
   const [list, setList] = useState<ProfileSummary[] | null>(null);
   const [baseId, setBaseId] = useState("");
   const [name, setName] = useState("Мой профиль");
@@ -72,6 +74,17 @@ export function ProfilesList() {
           </Button>
         </div>
       </section>
+      {pf.status === "ready" && pf.extractionEnabled && (
+        <section className="flex flex-col gap-2 border-t border-line pt-5">
+          <h2 className="text-lg font-medium">Из методички</h2>
+          <p className="text-sm text-muted">Загрузите методичку вуза, и мы предложим требования к оформлению.</p>
+          <div>
+            <Link href="/profiles/from-guideline" className="inline-block rounded-md border border-line px-4 py-2 text-sm font-medium hover:border-muted">
+              Создать из методички
+            </Link>
+          </div>
+        </section>
+      )}
       <section className="flex flex-col gap-2 border-t border-line pt-5">
         <h2 className="text-lg font-medium">Импорт</h2>
         <label className="text-sm text-muted" htmlFor="profile-import">Файл профиля (JSON)</label>
