@@ -360,11 +360,15 @@
       "path": "position",
       "group": "numbering",
       "label": "Положение",
-      "kind": "fixed",
+      "kind": "select",
       "options": [
         {
           "value": "bottom_center",
           "label": "внизу по центру"
+        },
+        {
+          "value": "top_center",
+          "label": "вверху по центру"
         }
       ]
     },

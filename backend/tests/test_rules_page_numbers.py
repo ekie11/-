@@ -69,3 +69,71 @@ def test_numbers_text_footer_keeps_text():
     fix(doc)
     assert "Колонтитул" in doc.sections[0].footer.paragraphs[0].text
     assert check(doc) == []
+
+
+def _top_cfg():
+    cfg = P.rules[KEY].model_copy(deep=True)
+    cfg.value["position"] = "top_center"
+    return cfg
+
+
+def check_top(doc):
+    return REGISTRY[KEY]().check(analyze(doc), _top_cfg())
+
+
+def fix_top(doc):
+    REGISTRY[KEY]().fix(analyze(doc), _top_cfg())
+
+
+def test_top_footer_numbers_reported_and_moved():
+    doc = build_docx(BLOCKS)  # номер внизу
+    issues = check_top(doc)
+    assert len(issues) == 1 and issues[0].fixable
+    assert issues[0].message == "Номер страницы: ожидается вверху страницы, найден внизу страницы"
+    fix_top(doc)
+    assert check_top(doc) == []
+    sec = doc.sections[0]
+    assert "PAGE" in sec.header._element.xml
+    assert "PAGE" not in sec.footer._element.xml
+    assert sec.header.paragraphs[0].alignment == WD_ALIGN_PARAGRAPH.CENTER
+    assert sec.different_first_page_header_footer is True
+
+
+def test_top_missing():
+    doc = build_docx(BLOCKS, page_numbers=False)
+    issues = check_top(doc)
+    assert [i.message for i in issues] == [
+        "Номер страницы: ожидается вверху страницы, найден отсутствует"]
+    fix_top(doc)
+    assert check_top(doc) == []
+
+
+def test_top_idempotent_and_keeps_footer_text():
+    doc = build_docx(BLOCKS)
+    doc.sections[0].footer.paragraphs[0].add_run(" Колонтитул")
+    fix_top(doc)
+    xml1 = doc.sections[0].header._element.xml
+    fix_top(doc)
+    assert doc.sections[0].header._element.xml == xml1
+    assert xml1.count("PAGE") == 1
+    assert "Колонтитул" in doc.sections[0].footer.paragraphs[0].text
+
+
+def test_top_wrong_alignment_and_first_page():
+    doc = build_docx(BLOCKS, page_numbers=False)
+    fix_top(doc)
+    doc.sections[0].header.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.LEFT
+    doc.sections[0].different_first_page_header_footer = False
+    assert len(check_top(doc)) == 2
+    fix_top(doc)
+    assert check_top(doc) == []
+
+
+def test_bottom_reports_header_numbers():
+    doc = build_docx(BLOCKS)
+    fix_top(doc)
+    issues = check(doc)
+    assert len(issues) == 1 and "вверху страницы" in issues[0].message
+    fix(doc)
+    assert check(doc) == []
+    assert "PAGE" not in doc.sections[0].header._element.xml

@@ -37,7 +37,7 @@
 | `headings.structural` | `{"bold": true, "align": "center", "uppercase": true, "trailing_period": false, "page_break_before": true}` | error | п. 6.2.1 |
 | `captions.figure` | `{"pattern": "Рисунок {n} — {title}", "position": "below", "align": "center"}` | error | п. 6.5.5 |
 | `captions.table` | `{"pattern": "Таблица {n} — {title}", "position": "above", "align": "left", "first_line_indent_cm": 0}` | error | п. 6.6.3 |
-| `page_numbers` | `{"position": "bottom_center", "show_on_first": false}` | error | п. 6.3.1 |
+| `page_numbers` | `{"position": "bottom_center", "show_on_first": false}` (position: `bottom_center` или `top_center`) | error | п. 6.3.1 |
 
 Названия структурных элементов (`headings.structural` применяется к ним): РЕФЕРАТ, СОДЕРЖАНИЕ, ТЕРМИНЫ И ОПРЕДЕЛЕНИЯ, ПЕРЕЧЕНЬ СОКРАЩЕНИЙ И ОБОЗНАЧЕНИЙ, ВВЕДЕНИЕ, ЗАКЛЮЧЕНИЕ, СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ, ПРИЛОЖЕНИЕ (с буквой).
 

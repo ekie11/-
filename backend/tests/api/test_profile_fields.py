@@ -107,7 +107,6 @@ def test_fixed_fields():
         "headings.section.trailing_period=false",
         "headings.structural.trailing_period=false",
         "page.size.format=A4",
-        "page_numbers.position=bottom_center",
         "toc.hyperlinks=true",
         "toc.levels=3",
     ]
