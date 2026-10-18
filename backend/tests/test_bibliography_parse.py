@@ -42,11 +42,30 @@ def test_check_entry_ok_and_problems():
     assert check_entry(Entry(4, "Иванов И. Статья // Журнал. — 2020. — № 1.", 0)) == []
 
 
-def test_toc_line_does_not_start_section():
+def test_toc_line_does_not_hide_real_section():
+    sec = section([("structural", "СОДЕРЖАНИЕ"), ("p", "Список литературы"),
+                   ("structural", "ВВЕДЕНИЕ"), ("p", "Текст."),
+                   ("structural", "СПИСОК ЛИТЕРАТУРЫ"), ("source", f"1. {BOOK}"),
+                   ("source", f"2. {BOOK}")])
+    assert [e.number for e in parse_entries(sec)] == [1, 2]
+
+
+def test_gap_after_paren_and_not_greater_is_continuation():
+    sec = section([("structural", "СПИСОК ЛИТЕРАТУРЫ"), ("source", f"1. {BOOK}"),
+                   ("source", "2. Сайт. — URL: http://x.ru (дата обращения: 01.01.2020)"),
+                   ("source", "4. Книга. — М. : Наука, 2020.")])
+    assert [e.number for e in parse_entries(sec)] == [1, 2, 4]
+    sec = section([("structural", "СПИСОК ЛИТЕРАТУРЫ"), ("source", f"5. {BOOK}"),
+                   ("source", "1. продолжение")])
+    assert len(parse_entries(sec)) == 1
+
+
+def test_heading_after_list_stays_heading():
     from gostdoc_engine.model import Role
-    doc = analyze(build_docx([("p", "Список литературы"), ("p", "Текст.")]))
-    doc.paragraphs[0].role = Role.TOC
-    assert find_section(doc) is None
+    m = analyze(build_docx([
+        ("structural", "СПИСОК ЛИТЕРАТУРЫ"), ("source", "1. Иванов И. И. Название"),
+        ("h1", "5 Приложение данных")]))
+    assert m.paragraphs[2].role == Role.HEADING_1
 
 
 def test_continuation_with_number_like_start():

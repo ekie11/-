@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from .analyze import REFERENCE_TITLES as SECTION_TITLES
 from .model import DocModel, DocParagraph, Role
 
-_NUM_START = re.compile(r"^\s*(\d+)[.)]\s")
+_NUM_START = re.compile(r"^\s*(\d{1,3})[.)]\s")
 _YEAR = re.compile(r"\b(1[89]|20)\d{2}\b")
 _ACCESS = re.compile(r"\(дата обращения:\s*\d{2}\.\d{2}\.\d{4}\)", re.IGNORECASE)
 _URL = re.compile(r"https?://|URL:")
@@ -25,10 +25,10 @@ def _norm(text: str) -> str:
 
 
 def find_section(model: DocModel) -> list[DocParagraph] | None:
-    start = next(
+    start = max(
         (i for i, p in enumerate(model.paragraphs)
          if p.role == Role.STRUCTURAL and _norm(p.text) in SECTION_TITLES),
-        None,
+        default=None,
     )
     if start is None:
         return None
@@ -41,21 +41,16 @@ def find_section(model: DocModel) -> list[DocParagraph] | None:
     return out
 
 
-def _complete(text: str) -> bool:
-    return text.rstrip().endswith((".", ";"))
-
-
 def parse_entries(paragraphs: list[DocParagraph]) -> list[Entry]:
     entries: list[Entry] = []
     for p in paragraphs:
         m = _NUM_START.match(p.text)
         num = int(m.group(1)) if m else None
         prev = entries[-1].number if entries else None
-        starts = (
-            not entries
-            or p.role == Role.LIST_ITEM
-            or (num is not None and num <= 999 and (prev is None or num == prev + 1 or _complete(entries[-1].text)))
-        )
+        if num is not None:
+            starts = prev is None or num > prev
+        else:
+            starts = not entries or p.role == Role.LIST_ITEM
         if starts:
             entries.append(Entry(num, p.text.strip(), p.index))
         else:

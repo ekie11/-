@@ -31,6 +31,7 @@ REFERENCE_TITLES: frozenset[str] = frozenset(
         "СПИСОК ИСПОЛЬЗОВАННОЙ ЛИТЕРАТУРЫ",
     }
 )
+_REF_ENTRY = re.compile(r"^\s*\d{1,3}[.)]\s")
 _APPENDIX = re.compile(r"^ПРИЛОЖЕНИЕ\s+[А-ЯЁA-Z]$")
 _FIGURE = re.compile(r"^(Рисунок\s+\d|Рис\.\s*\d)", re.IGNORECASE)
 _TABLE = re.compile(r"^Таблица\s+\d", re.IGNORECASE)
@@ -158,6 +159,7 @@ def analyze(doc) -> DocModel:
     for p in items:
         if p.role == Role.STRUCTURAL:
             in_refs = norm(p) in REFERENCE_TITLES
-        elif in_refs and p.role in (Role.HEADING_1, Role.HEADING_2, Role.HEADING_3):
+        elif (in_refs and _REF_ENTRY.match(p.text)
+              and p.role in (Role.HEADING_1, Role.HEADING_2, Role.HEADING_3)):
             p.role = Role.LIST_ITEM
     return DocModel(doc=doc, paragraphs=items)
