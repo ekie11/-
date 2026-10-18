@@ -2,3 +2,7 @@ __pycache__/
 .venv/
 *.egg-info/
 .pytest_cache/
+frontend/node_modules
+frontend/.next
+frontend/test-results
+frontend/playwright-report
