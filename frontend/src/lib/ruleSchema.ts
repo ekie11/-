@@ -123,4 +123,19 @@ export const FIELDS: FieldDef[] = [
   },
   align("captions.table", "captions", "Выравнивание заголовка таблицы"),
   indent("captions.table", "first_line_indent_cm", "captions", "Отступ заголовка таблицы"),
+  {
+    rule: "bibliography", path: "standard", group: "sources", label: "Стандарт оформления", kind: "fixed",
+    options: [{ value: "7.0.100-2018", label: "ГОСТ Р 7.0.100-2018" }],
+  },
+  {
+    rule: "bibliography", path: "order", group: "sources", label: "Порядок источников", kind: "select",
+    options: [
+      { value: "mention", label: "по порядку упоминания" },
+      { value: "alphabet", label: "по алфавиту" },
+    ],
+  },
+  {
+    rule: "bibliography", path: "citation_format", group: "sources", label: "Формат ссылки", kind: "fixed",
+    options: [{ value: "[N]", label: "[N]" }],
+  },
 ];
