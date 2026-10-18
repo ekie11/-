@@ -176,3 +176,19 @@ def test_unsupported_dedup_against_found():
 def test_prompt_rules():
     system, _ = build_messages("текст")
     assert "явно" in system and "либо в \"found\", либо в \"unsupported\"" in system
+
+
+def test_zero_in_words_and_trailing_zeros():
+    t = "Таблица: без абзацного отступа. Интервал 1,50. Кегль 2,0 см, 14,0 пт, 14,05 и 140."
+    ok = [
+        _f("captions.table", "first_line_indent_cm", 0, "без абзацного отступа"),
+        _f("body.line_spacing", "multiple", 1.5, "Интервал 1,50"),
+        _f("body.first_line_indent", "cm", 2.0, "Кегль 2,0 см"),
+        _f("body.font_size", "target_pt", 14, "см, 14,0 пт"),
+    ]
+    r = validate({"found": ok, "unsupported": []}, t)
+    assert r["rejected_count"] == 0 and len(r["found"]) == 4
+    for val, q in ((14, "14,05 и 140"), (0, "Интервал 1,50")):
+        r = validate({"found": [_f("body.font_size", "target_pt", val, q)],
+                      "unsupported": []}, t)
+        assert r["found"] == []

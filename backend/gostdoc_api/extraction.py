@@ -120,11 +120,16 @@ class _Source:
 
 
 def _number_in_quote(num: float, quote: str) -> bool:
-    """Число буквально встречается в цитате (1,25 / 1.25 / 14), не внутри другого числа."""
+    """Число буквально встречается в цитате (1,25 / 1.25 / 14 / 1,50), не внутри другого числа.
+
+    Ноль допустим и словами: «без абзацного отступа».
+    """
+    if num == 0 and re.search(r"(?<![\w])без(?![\w])", quote.lower()):
+        return True
     base = f"{num:g}"
-    forms = {base, base.replace(".", ",")}
-    for form in forms:
-        pat = rf"(?<!\d)(?<!\d[.,]){re.escape(form)}(?!\d)(?![.,]\d)"
+    tail = r"(?:[.,]0+)?" if num == int(num) else "0*"
+    for form in {base, base.replace(".", ",")}:
+        pat = rf"(?<!\d)(?<!\d[.,]){re.escape(form)}{tail}(?!\d)(?![.,]\d)"
         if re.search(pat, quote):
             return True
     return False
