@@ -124,3 +124,9 @@ def test_run_extraction(monkeypatch):
     s = Settings(database_url="sqlite://", redis_url="r", storage_dir="/tmp/x")
     r = run_extraction(TEXT, s)
     assert r["found"][0]["page"] == 1 and "МЕТОДИЧКА>>>" in seen["user"]
+
+
+def test_unsupported_text_capped():
+    q = "Кегль 14 пт"
+    r = validate({"found": [], "unsupported": [{"text": "я" * 500, "quote": q}]}, TEXT)
+    assert len(r["unsupported"][0]["text"]) == 300

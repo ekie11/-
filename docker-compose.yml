@@ -14,6 +14,12 @@ x-backend: &backend
     JOB_TIMEOUT_S: ${JOB_TIMEOUT_S:-120}
     FILE_TTL_DAYS: ${FILE_TTL_DAYS:-30}
     TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.28.0.0/16}
+    LLM_API_KEY: ${LLM_API_KEY:-}
+    LLM_BASE_URL: ${LLM_BASE_URL:-https://open.bigmodel.cn/api/paas/v4}
+    LLM_MODEL: ${LLM_MODEL:-glm-4.6}
+    LLM_TIMEOUT_S: ${LLM_TIMEOUT_S:-120}
+    EXTRACT_USER_DAILY: ${EXTRACT_USER_DAILY:-5}
+    EXTRACT_GLOBAL_DAILY: ${EXTRACT_GLOBAL_DAILY:-500}
 
 services:
   postgres:

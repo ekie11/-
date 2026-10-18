@@ -122,7 +122,7 @@ async def create_extraction(
             guideline,
             job_id=row.id,
             job_timeout=timeout,
-            ttl=timeout,  # не выполненная вовремя задача удаляется из очереди вместе с текстом
+            ttl=timeout,  # ttl только ограничивает хранение результата в RQ; зависшую в очереди задачу чистит cleanup (текст остаётся в Redis до её запуска)
             result_ttl=0,  # текст методички не держим в Redis после выполнения
             failure_ttl=FAILURE_TTL_S,
             on_failure=Callback(on_extraction_failure),

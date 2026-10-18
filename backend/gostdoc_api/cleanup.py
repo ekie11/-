@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
 from . import storage
@@ -15,6 +15,10 @@ from .models import Extraction, GuestSession, Job, SessionToken
 def _aware(dt: datetime) -> datetime:
     # SQLite возвращает naive-даты; считаем их UTC (как в auth.py).
     return dt if dt.tzinfo else dt.replace(tzinfo=UTC)
+
+
+STUCK_AFTER = timedelta(minutes=30)  # таймаут задачи (до 300 с и выше) плюс запас
+STUCK_MESSAGE = "Сервис распознавания временно недоступен, попробуйте позже"
 
 
 def cleanup_expired(db: Session, settings: Settings, now: datetime) -> int:
@@ -35,6 +39,14 @@ def cleanup_expired(db: Session, settings: Settings, now: datetime) -> int:
     for guest in db.scalars(select(GuestSession)):
         if _aware(guest.expires_at) <= now:
             db.delete(guest)
+    db.execute(
+        update(Extraction)
+        .where(
+            Extraction.status.in_(("queued", "running")),
+            Extraction.created_at < now - STUCK_AFTER,
+        )
+        .values(status="failed", error=STUCK_MESSAGE, counts_toward_limit=False)
+    )
     db.execute(
         delete(Extraction).where(
             Extraction.created_at < now - timedelta(days=settings.file_ttl_days)

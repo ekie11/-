@@ -150,6 +150,9 @@ def _coerce(f: dict, value):
     return None
 
 
+UNSUPPORTED_TEXT_MAX = 300
+
+
 def validate(raw: dict, text: str) -> dict:
     src = _Source(text)
     index = field_index()
@@ -195,7 +198,7 @@ def validate(raw: dict, text: str) -> dict:
             rejected += 1
             continue
         unsupported.append(
-            {"text": desc.strip(), "quote": item["quote"].strip(), "page": page}
+            {"text": desc.strip()[:UNSUPPORTED_TEXT_MAX], "quote": item["quote"].strip(), "page": page}
         )
 
     return {"found": found, "unsupported": unsupported, "rejected_count": rejected}

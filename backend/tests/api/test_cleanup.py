@@ -62,3 +62,29 @@ def test_expired_session_removed(client, db_session, settings):
     hashes = [s.token_hash for s in db_session.query(SessionToken)]
     assert "x" * 64 not in hashes and len(hashes) == 1
     assert client.get("/auth/me").status_code == 200
+
+
+def test_stuck_extractions_marked_failed(client, db_session, settings):
+    reg(client)
+    from datetime import timedelta
+
+    from gostdoc_api.models import Extraction
+
+    old = NOW - timedelta(minutes=45)
+    for i, st in enumerate(("queued", "running", "done")):
+        db_session.add(
+            Extraction(id=f"s{i}", user_id=1, status=st, base_profile_id="x", created_at=old)
+        )
+    db_session.add(
+        Extraction(id="fresh", user_id=1, status="queued", base_profile_id="x",
+                   created_at=NOW - timedelta(minutes=5))
+    )
+    db_session.commit()
+    cleanup_expired(db_session, settings, NOW)
+    db_session.expire_all()
+    for i in (0, 1):
+        row = db_session.get(Extraction, f"s{i}")
+        assert row.status == "failed" and row.counts_toward_limit is False
+        assert "временно недоступен" in row.error
+    assert db_session.get(Extraction, "s2").status == "done"
+    assert db_session.get(Extraction, "fresh").status == "queued"
