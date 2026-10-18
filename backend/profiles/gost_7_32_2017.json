@@ -128,6 +128,15 @@
       "severity": "error",
       "enabled": true,
       "source": "ГОСТ Р 7.0.100-2018; ГОСТ 7.32-2017, п. 6.16"
+    },
+    "toc": {
+      "value": {
+        "levels": 3,
+        "hyperlinks": true
+      },
+      "severity": "recommendation",
+      "enabled": true,
+      "source": "ГОСТ 7.32-2017, п. 6.2.3 (содержание)"
     }
   }
 }

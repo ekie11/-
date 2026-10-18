@@ -7,4 +7,5 @@ from . import (  # noqa: F401  (регистрация правил)
     headings,
     page,
     page_numbers,
+    toc,
 )

@@ -23,6 +23,7 @@ KNOWN_RULE_KEYS: frozenset[str] = frozenset(
         "captions.table",
         "page_numbers",
         "bibliography",
+        "toc",
     }
 )
 

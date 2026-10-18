@@ -128,6 +128,15 @@
       "severity": "error",
       "enabled": true,
       "source": "ГОСТ Р 7.0.100-2018"
+    },
+    "toc": {
+      "value": {
+        "levels": 3,
+        "hyperlinks": true
+      },
+      "severity": "recommendation",
+      "enabled": true,
+      "source": "ГОСТ 2.105-2019, п. 6.2.3"
     }
   }
 }

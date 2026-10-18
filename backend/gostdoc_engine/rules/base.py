@@ -23,6 +23,7 @@ class Issue:
 class Rule(ABC):
     key: ClassVar[str]
     fixable: ClassVar[bool]
+    order: ClassVar[int] = 0  # порядок исправления: меньшие раньше
 
     @abstractmethod
     def check(self, model: DocModel, cfg: RuleConfig) -> list[Issue]:
