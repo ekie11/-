@@ -31,7 +31,7 @@ test("пользователь: регистрация -> свой профил�
   await page.getByText("Оформить", { exact: true }).click();
   await page.getByRole("button", { name: "Запустить" }).click();
 
-  await expect(page).toHaveURL(/\/jobs\/\d+/);
+  await expect(page).toHaveURL(/\/jobs\/[\w-]+/);
   await expect(page.getByRole("link", { name: "Скачать DOCX" })).toBeVisible();
 
   await page.getByRole("link", { name: "Мои документы" }).click();

@@ -13,7 +13,7 @@ test("гость: текст -> проверка -> сводка -> скачив
   await page.getByText("Проверить", { exact: true }).click();
   await page.getByRole("button", { name: "Запустить" }).click();
 
-  await expect(page).toHaveURL(/\/jobs\/\d+/);
+  await expect(page).toHaveURL(/\/jobs\/[\w-]+/);
   await expect(page.getByRole("heading", { name: /Замечаний нет|замечани/ })).toBeVisible();
   const download = page.getByRole("link", { name: "Скачать DOCX" });
   await expect(download).toBeVisible();
