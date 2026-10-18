@@ -112,6 +112,8 @@ def build_docx(
             para(text, None, None, "center", 0)
         elif kind == "table_caption":
             para(text, None, None, "left", 0)
+        elif kind == "source":
+            para(text, None, None, "justify", indent_cm)
         elif kind == "empty":
             para("", None, None, align, indent_cm)
         elif kind == "table":

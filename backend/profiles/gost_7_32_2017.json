@@ -118,6 +118,16 @@
       "severity": "error",
       "enabled": true,
       "source": "п. 6.3.1"
+    },
+    "bibliography": {
+      "value": {
+        "standard": "7.0.100-2018",
+        "order": "mention",
+        "citation_format": "[N]"
+      },
+      "severity": "error",
+      "enabled": true,
+      "source": "ГОСТ Р 7.0.100-2018; ГОСТ 7.32-2017, п. 6.16"
     }
   }
 }
