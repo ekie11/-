@@ -2,7 +2,13 @@
 
 import re
 
-from ..bibliography import check_entry, find_section, parse_entries
+from ..bibliography import (
+    check_entry,
+    find_citations,
+    find_section,
+    fix_paragraph_typography,
+    parse_entries,
+)
 from ..model import DocModel, Role
 from ..profile import RuleConfig
 from .base import Issue, Rule, register
@@ -13,7 +19,7 @@ _CITATION = re.compile(r"\[\d+")
 @register
 class BibliographyRule(Rule):
     key = "bibliography"
-    fixable = False
+    fixable = True
 
     def check(self, model: DocModel, cfg: RuleConfig) -> list[Issue]:
         def issue(msg, idx, severity=None):
@@ -29,9 +35,11 @@ class BibliographyRule(Rule):
             return []
         issues = []
         prev = 0
-        for pos, entry in enumerate(parse_entries(section), start=1):
-            if entry.number is None:
-                entry.number = pos
+        entries = parse_entries(section)
+        for pos, e in enumerate(entries, start=1):
+            if e.number is None:
+                e.number = pos
+        for entry in entries:
             if entry.number != prev + 1:
                 issues.append(issue(
                     f"Источник {entry.number}: нарушена нумерация, ожидался номер {prev + 1}",
@@ -40,4 +48,33 @@ class BibliographyRule(Rule):
             for msg in check_entry(entry):
                 sev = "recommendation" if "вместо «[Электронный ресурс]»" in msg else None
                 issues.append(issue(msg, entry.paragraph_index, sev))
+        issues.extend(self._citation_issues(model, cfg, entries, issue))
         return issues
+
+    @staticmethod
+    def _citation_issues(model, cfg, entries, issue):
+        out = []
+        numbers = {e.number for e in entries}
+        cited: set[int] = set()
+        first: list[int] = []
+        for idx, nums in find_citations(model):
+            seen = set()
+            for n in nums:
+                cited.add(n)
+                if n not in first:
+                    first.append(n)
+                if n not in numbers and n not in seen:
+                    seen.add(n)
+                    out.append(issue(f"Ссылка [{n}] указывает на несуществующий источник", idx))
+        for e in entries:
+            if e.number not in cited:
+                out.append(issue(f"На источник {e.number} нет ссылки в тексте",
+                                 e.paragraph_index, "recommendation"))
+        known = [n for n in first if n in numbers]
+        if cfg.value.get("order") == "mention" and known != sorted(known):
+            out.append(issue("Источники пронумерованы не в порядке упоминания", None))
+        return out
+
+    def fix(self, model: DocModel, cfg: RuleConfig) -> None:
+        for p in find_section(model) or []:
+            fix_paragraph_typography(p.para)

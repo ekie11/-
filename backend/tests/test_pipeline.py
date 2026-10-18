@@ -278,3 +278,20 @@ def test_reference_entries_not_formatted_as_headings():
     for par in out.paragraphs[-2:]:
         assert not par.paragraph_format.page_break_before
         assert not any(r.bold for r in par.runs)
+
+
+def test_bibliography_format_twice_stable():
+    blocks = [("structural", "введение"), ("p", "Как в [2] и [1]."),
+              ("structural", "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ"),
+              ("source", "1. Иванов И. Книга. - М. :Наука, 2020. - 10 с. Текст:электронный"),
+              ("source", "2. Статья//Журнал. - 2020.")]
+    data = save(build_docx(blocks))
+    first = process(data, P, "format")
+    second = process(first.docx_bytes, P, "format")
+    key = lambda r: sorted((i["rule"], i["message"]) for i in r.report["issues"])
+    assert key(second) == key(first)
+    assert not [i for i in second.report["issues"] if i["rule"] == "bibliography" and i["fixable"]]
+    w = normalized_words(analyze(load_docx(data)))
+    assert normalized_words(analyze(load_docx(second.docx_bytes))) == w
+    texts = [p.text for p in load_docx(second.docx_bytes).paragraphs]
+    assert "1. Иванов И. Книга. — М. : Наука, 2020. — 10 с. Текст : электронный" in texts

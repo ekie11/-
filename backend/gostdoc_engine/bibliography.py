@@ -74,3 +74,84 @@ def check_entry(entry: Entry) -> list[str]:
     if _OLD_ELECTRONIC.search(text):
         msgs.append(f"{label}: используйте «Текст : электронный» вместо «[Электронный ресурс]»")
     return msgs
+
+
+_CITE = re.compile(r"\[(\d[^\[\]]*)\]")
+_CITE_PART = re.compile(r"\s*(\d{1,4})(?:\s*[–-]\s*(\d{1,4}))?\s*")
+MAX_RANGE = 50
+
+
+def _cite_numbers(body: str) -> list[int]:
+    nums: list[int] = []
+    for part in re.split(r"[;,]", body):
+        m = _CITE_PART.fullmatch(part)
+        if not m:
+            continue
+        lo = int(m.group(1))
+        if m.group(2) is None:
+            nums.append(lo)
+            continue
+        hi = int(m.group(2))
+        if lo <= hi and hi - lo + 1 <= MAX_RANGE:
+            nums.extend(range(lo, hi + 1))
+        else:
+            nums.extend([lo, hi])
+    return nums
+
+
+def find_citations(model: DocModel) -> list[tuple[int, list[int]]]:
+    """Ссылки [N], [N, с. X], [N; M], [N–M] вне списка источников и оглавления."""
+    section = find_section(model) or []
+    skip = {p.index for p in section}
+    out = []
+    for p in model.paragraphs:
+        if p.index in skip or p.role in (Role.TOC, Role.EMPTY):
+            continue
+        nums = [n for m in _CITE.finditer(p.text) for n in _cite_numbers(m.group(1))]
+        if nums:
+            out.append((p.index, nums))
+    return out
+
+
+def _replace_span(ts, start: int, end: int, repl: str) -> None:
+    """Заменить символы [start, end) сквозь w:t соседних прогонов (end > start)."""
+    pos = 0
+    placed = False
+    for t in ts:
+        txt = t.text or ""
+        a, b = max(start - pos, 0), min(end - pos, len(txt))
+        if a < b:
+            t.text = txt[:a] + (repl if not placed else "") + txt[b:]
+            t.set("{http://www.w3.org/XML/1998/namespace}space", "preserve")
+            placed = True
+        pos += len(txt)
+
+
+def _dash_repl(m: re.Match) -> str | None:
+    text = m.string
+    if text[max(m.start() - 2, 0):m.start() - 1].isdigit() and text[m.end() + 1:m.end() + 2].isdigit():
+        return None  # диапазон «10 - 15» не трогаем
+    return "—"
+
+
+def fix_paragraph_typography(par) -> None:
+    """Пробелы и тире между элементами записи; работает сквозь прогоны."""
+    ts = par._p.xpath(".//w:t")
+    passes = [
+        (re.compile(r" {2,}"), lambda m: " "),
+        (re.compile(r"(?<=\s)[-–](?=\s)"), _dash_repl),
+        (re.compile(r"(?<=\.)[-–](?=\s)"), lambda m: " —"),
+        (re.compile(r"\s+—\s*|\s*—\s+"), lambda m: " — "),
+        (re.compile(r"(?<![:/])\s*//(?!/)\s*"), lambda m: " // "),
+        (re.compile(r"(?<=\S)(?<!URL)(?: :|:)(?=[^\W\d_])"), lambda m: " : "),
+        (re.compile(r" {2,}"), lambda m: " "),
+    ]
+    for rx, fn in passes:
+        full = "".join(t.text or "" for t in ts)
+        edits = []
+        for m in rx.finditer(full):
+            repl = fn(m)
+            if repl is not None and repl != m.group(0):
+                edits.append((m.start(), m.end(), repl))
+        for a, b, repl in reversed(edits):
+            _replace_span(ts, a, b, repl)
