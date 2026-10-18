@@ -43,3 +43,24 @@ export function summary(report: Report, mode: JobMode): string {
   const which = plural(n) === "замечание" ? "которое" : "которые";
   return `Оформление готово. Осталось ${n} ${plural(n)}, ${which} нужно поправить вручную`;
 }
+
+const RULE_TITLES: Record<string, string> = {
+  "page.size": "Формат страницы",
+  "page.margins": "Поля",
+  "body.font_name": "Шрифт",
+  "body.font_size": "Размер шрифта",
+  "body.line_spacing": "Межстрочный интервал",
+  "body.first_line_indent": "Абзацный отступ",
+  "body.alignment": "Выравнивание текста",
+  "headings.section": "Заголовки разделов",
+  "headings.structural": "Структурные элементы",
+  "captions.figure": "Подписи рисунков",
+  "captions.table": "Подписи таблиц",
+  page_numbers: "Нумерация страниц",
+  bibliography: "Список источников",
+  toc: "Оглавление",
+};
+
+export function ruleTitle(rule: string): string {
+  return RULE_TITLES[rule] ?? rule;
+}
