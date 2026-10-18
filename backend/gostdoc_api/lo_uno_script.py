@@ -8,9 +8,12 @@ from __future__ import annotations
 
 import json
 import os
+import secrets
+import signal
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 
 def main(soffice: str, profile: str, src: str, out_pdf: str) -> None:
@@ -22,18 +25,26 @@ def main(soffice: str, profile: str, src: str, out_pdf: str) -> None:
         p.Name, p.Value = name, value
         return p
 
-    pipe = f"gostdoc{os.getpid()}"
+    try:  # Linux: осиротевшие потомки soffice достаются нам, и мы их собираем
+        import ctypes
+
+        ctypes.CDLL(None, use_errno=True).prctl(36, 1, 0, 0, 0)  # PR_SET_CHILD_SUBREAPER
+    except Exception:  # noqa: BLE001, S110 - не критично
+        pass
+    desktop = None
+    pipe = f"gostdoc{secrets.token_hex(8)}"
     proc = subprocess.Popen(
         [
             soffice,
             "--headless",
             "--invisible",
             "--norestore",
-            f"-env:UserInstallation=file://{profile}",
+            f"-env:UserInstallation={Path(profile).as_uri()}",
             f"--accept=pipe,name={pipe};urp;",
         ],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
+        start_new_session=True,
     )
     try:
         ctx = uno.getComponentContext()
@@ -79,7 +90,20 @@ def main(soffice: str, profile: str, src: str, out_pdf: str) -> None:
         sys.stdout.write(json.dumps(pages))
         sys.stdout.flush()
     finally:
-        proc.kill()
+        if desktop is not None:
+            try:
+                desktop.terminate()
+            except Exception:  # noqa: BLE001, S110
+                pass
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except OSError:
+            pass
+        while True:  # собрать всех потомков, включая осиротевшие soffice.bin
+            try:
+                os.waitpid(-1, 0)
+            except ChildProcessError:
+                break
 
 
 if __name__ == "__main__":

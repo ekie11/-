@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import threading
 from pathlib import Path
 
@@ -62,7 +63,7 @@ def mark_error_if_open(job_id: str, message: str | None = None) -> None:
 
 
 def _pdf_timeout(settings: Settings) -> int:
-    return max(10, min(60, settings.job_timeout_s // 2))
+    return max(10, min(60, settings.job_timeout_s // 3))
 
 
 def _toc_pages_and_pdf(settings: Settings, docx_path: Path) -> tuple[str | None, str | None]:
@@ -79,23 +80,36 @@ def _toc_pages_and_pdf(settings: Settings, docx_path: Path) -> tuple[str | None,
         log.exception("TOC check failed")
         return None, None
     out_pdf = docx_path.with_suffix(".pdf")
+    timed_out: JobTimeoutException | None = None
     try:
         pages = page_numbers_and_pdf(
             docx_path, out_pdf, soffice=settings.soffice_path, timeout_s=_pdf_timeout(settings)
         )
-        set_page_numbers(doc, pages)
-        doc.save(str(docx_path))
+        links = len(doc.element.body.xpath(".//w:hyperlink[@w:anchor]"))
+        if set_page_numbers(doc, pages) < links:
+            raise ValueError("номера страниц получены не для всех пунктов оглавления")
+        _save_atomic(doc, docx_path)
         return str(out_pdf), None
-    except Exception:  # в т.ч. JobTimeoutException: DOCX цел, просто без номеров
+    except JobTimeoutException as exc:
+        timed_out = exc
+    except Exception:
         log.exception("TOC page numbers failed")
-        out_pdf.unlink(missing_ok=True)
-        try:
-            doc = Document(str(docx_path))
-            set_update_fields(doc)
-            doc.save(str(docx_path))
-        except Exception:
-            log.exception("set_update_fields failed")
-        return None, TOC_WARNING
+    out_pdf.unlink(missing_ok=True)
+    try:
+        doc = Document(str(docx_path))
+        set_update_fields(doc)
+        _save_atomic(doc, docx_path)
+    except Exception:
+        log.exception("set_update_fields failed")
+    if timed_out is not None:
+        raise timed_out
+    return None, TOC_WARNING
+
+
+def _save_atomic(doc, path: Path) -> None:
+    tmp = path.with_name(path.name + ".tmp")
+    doc.save(str(tmp))
+    os.replace(tmp, path)
 
 
 def _build_pdf(settings: Settings, directory: Path, docx_path: Path) -> str | None:
@@ -136,11 +150,17 @@ def run_job(job_id: str) -> None:
             storage.write(docx_path, result.docx_bytes)
             report = dict(result.report)
             pdf = None
+            skip_pdf = False
             if job.mode == "format":
-                pdf, toc_warning = _toc_pages_and_pdf(settings, docx_path)
+                try:
+                    pdf, toc_warning = _toc_pages_and_pdf(settings, docx_path)
+                except JobTimeoutException:
+                    # DOCX сохранён (с updateFields); как и при таймауте PDF — без предпросмотра
+                    log.exception("TOC phase timed out")
+                    pdf, toc_warning, skip_pdf = None, TOC_WARNING, True
                 if toc_warning:
                     report["warnings"] = [*report.get("warnings", []), toc_warning]
-            if pdf is None:
+            if pdf is None and not skip_pdf:
                 pdf = _build_pdf(settings, directory, docx_path)
             if pdf is None:
                 report["warnings"] = [*report.get("warnings", []), PDF_WARNING]

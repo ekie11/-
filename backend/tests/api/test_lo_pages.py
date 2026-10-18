@@ -1,4 +1,5 @@
 import io
+import os
 import shutil
 import time
 from pathlib import Path
@@ -72,6 +73,29 @@ def test_missing_interpreter(tmp_path, monkeypatch):
         page_numbers_and_pdf(_docx(tmp_path), tmp_path / "r.pdf", soffice="x", timeout_s=10)
 
 
+def _zombie_children() -> list[str]:
+    me = str(os.getpid())
+    out = []
+    for d in Path("/proc").iterdir():
+        if d.name.isdigit():
+            try:
+                fields = (d / "stat").read_text().rsplit(")", 1)[1].split()
+            except OSError:
+                continue
+            if fields[0] == "Z" and fields[1] == me:
+                out.append(d.name)
+    return out
+
+
+def test_no_zombie_children_after_success_and_timeout(tmp_path, monkeypatch):
+    _fake(tmp_path, monkeypatch, OK)
+    page_numbers_and_pdf(_docx(tmp_path), tmp_path / "r.pdf", soffice="x", timeout_s=10)
+    _fake(tmp_path, monkeypatch, SLEEP, "sleep_lo.py")
+    with pytest.raises(PdfError):
+        page_numbers_and_pdf(_docx(tmp_path), tmp_path / "r2.pdf", soffice="x", timeout_s=1)
+    assert _zombie_children() == []
+
+
 def test_timeout_kills_children(tmp_path, monkeypatch):
     _fake(tmp_path, monkeypatch, SLEEP)
     with pytest.raises(PdfError):
@@ -84,10 +108,9 @@ def test_timeout_kills_children(tmp_path, monkeypatch):
             if d.name.isdigit():
                 try:
                     cmd = (d / "cmdline").read_bytes()
-                    state = (d / "stat").read_text().rsplit(")", 1)[1].split()[0]
                 except OSError:
                     continue
-                if cmd.startswith(b"sleep\x0030") and state != "Z":
+                if cmd.startswith(b"sleep\x0030"):
                     alive.append(d.name)
         if not alive:
             break
@@ -209,3 +232,14 @@ def test_worker_no_toc_skips_lo(client, monkeypatch, tmp_path):
     assert "Номера страниц в оглавлении обновятся при открытии в Word" not in got["report"].get(
         "warnings", []
     )
+
+
+@pytest.mark.usefixtures("queue")
+def test_worker_partial_pages_fall_back(client, monkeypatch, tmp_path):
+    def fake(docx_path, out_pdf, *, soffice, timeout_s):
+        out_pdf.write_bytes(b"%PDF-1.4")
+        return {}
+
+    monkeypatch.setattr(worker, "page_numbers_and_pdf", fake)
+    got, _jid = _run_format(client, monkeypatch, tmp_path)
+    assert "Номера страниц в оглавлении обновятся при открытии в Word" in got["report"]["warnings"]

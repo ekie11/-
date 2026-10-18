@@ -257,8 +257,8 @@ def test_missing_result_file_404_and_enqueue_failure_cleans(client, queue, monke
     assert set(os.listdir(os.path.join(settings.storage_dir, "jobs"))) == before
 
 
-@pytest.mark.parametrize(("job_timeout", "expected"), [(120, 60), (30, 15), (10, 10), (500, 60)])
-def test_pdf_timeout_is_half_of_job_timeout(client, queue, monkeypatch, job_timeout, expected):
+@pytest.mark.parametrize(("job_timeout", "expected"), [(180, 60), (60, 20), (10, 10), (900, 60)])
+def test_pdf_timeout_is_third_of_job_timeout(client, queue, monkeypatch, job_timeout, expected):
     from dataclasses import replace
 
     seen = {}
