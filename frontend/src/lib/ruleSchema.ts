@@ -20,7 +20,7 @@ export type FieldDef = {
   path: string;
   group: GroupId;
   label: string;
-  kind: "number" | "select" | "bool" | "text";
+  kind: "number" | "select" | "bool" | "text" | "fixed";
   unit?: string;
   min?: number;
   max?: number;
@@ -69,8 +69,8 @@ const pt = (rule: string, path: string, label: string): FieldDef => ({
 
 export const FIELDS: FieldDef[] = [
   {
-    rule: "page.size", path: "format", group: "page", label: "Формат", kind: "select",
-    options: [{ value: "A4", label: "A4" }, { value: "A3", label: "A3" }, { value: "A5", label: "A5" }],
+    rule: "page.size", path: "format", group: "page", label: "Формат", kind: "fixed",
+    options: [{ value: "A4", label: "A4" }],
   },
   {
     rule: "page.size", path: "orientation", group: "page", label: "Ориентация", kind: "select",
@@ -100,26 +100,20 @@ export const FIELDS: FieldDef[] = [
   bool("headings.structural", "trailing_period", "structure", "Точка в конце"),
   bool("headings.structural", "page_break_before", "structure", "С новой страницы"),
   {
-    rule: "page_numbers", path: "position", group: "numbering", label: "Положение", kind: "select",
-    options: [
-      { value: "bottom_center", label: "внизу по центру" },
-      { value: "bottom_right", label: "внизу справа" },
-      { value: "bottom_left", label: "внизу слева" },
-      { value: "top_center", label: "вверху по центру" },
-      { value: "top_right", label: "вверху справа" },
-    ],
+    rule: "page_numbers", path: "position", group: "numbering", label: "Положение", kind: "fixed",
+    options: [{ value: "bottom_center", label: "внизу по центру" }],
   },
   bool("page_numbers", "show_on_first", "numbering", "Номер на первой странице"),
   { rule: "captions.figure", path: "pattern", group: "captions", label: "Шаблон подписи рисунка", kind: "text" },
   {
-    rule: "captions.figure", path: "position", group: "captions", label: "Положение подписи рисунка", kind: "select",
-    options: [{ value: "below", label: "под рисунком" }, { value: "above", label: "над рисунком" }],
+    rule: "captions.figure", path: "position", group: "captions", label: "Положение подписи рисунка", kind: "fixed",
+    options: [{ value: "below", label: "под рисунком" }],
   },
   align("captions.figure", "captions", "Выравнивание подписи рисунка"),
   { rule: "captions.table", path: "pattern", group: "captions", label: "Шаблон заголовка таблицы", kind: "text" },
   {
-    rule: "captions.table", path: "position", group: "captions", label: "Положение заголовка таблицы", kind: "select",
-    options: [{ value: "above", label: "над таблицей" }, { value: "below", label: "под таблицей" }],
+    rule: "captions.table", path: "position", group: "captions", label: "Положение заголовка таблицы", kind: "fixed",
+    options: [{ value: "above", label: "над таблицей" }],
   },
   align("captions.table", "captions", "Выравнивание заголовка таблицы"),
   indent("captions.table", "first_line_indent_cm", "captions", "Отступ заголовка таблицы"),

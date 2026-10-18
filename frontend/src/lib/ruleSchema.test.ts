@@ -45,8 +45,17 @@ describe("ruleSchema", () => {
       const v = at(gost.rules[f.rule].value, f.path);
       if (f.kind === "number") expect(typeof v).toBe("number");
       if (f.kind === "bool") expect(typeof v).toBe("boolean");
-      if (f.kind === "select") expect(f.options?.map((o) => o.value)).toContain(v);
+      if (f.kind === "select" || f.kind === "fixed") expect(f.options?.map((o) => o.value)).toContain(v);
       if (f.kind === "text") expect(typeof v).toBe("string");
     }
+  });
+  it("значения, которые движок не поддерживает, зафиксированы", () => {
+    const fixed = FIELDS.filter((f) => f.kind === "fixed").map((f) => `${f.rule}.${f.path}=${f.options?.map((o) => o.value)}`);
+    expect(fixed.sort()).toEqual([
+      "captions.figure.position=below",
+      "captions.table.position=above",
+      "page.size.format=A4",
+      "page_numbers.position=bottom_center",
+    ]);
   });
 });

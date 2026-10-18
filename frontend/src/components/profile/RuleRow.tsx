@@ -40,7 +40,16 @@ function NumberField({ f, value, disabled, onCommit }: { f: FieldDef; value?: nu
         const n = e.currentTarget.valueAsNumber;
         if (!Number.isNaN(n)) onCommit(n);
       }}
-      onBlur={() => setText(null)}
+      onBlur={() => {
+        const n = Number(text);
+        if (text !== null && text !== "" && !Number.isNaN(n)) {
+          const c = Math.min(f.max ?? n, Math.max(f.min ?? n, n));
+          if (c !== n || c !== value) onCommit(c);
+        } else if (text === "" && value !== undefined && f.min !== undefined) {
+          onCommit(value);
+        }
+        setText(null);
+      }}
     />
   );
 }
@@ -74,6 +83,13 @@ export function RuleRow({ ruleId, fields, rule, baseRule, disabled, onChange }: 
               )}
               {f.kind === "text" && (
                 <TextField label={f.label} disabled={disabled} value={typeof v === "string" ? v : ""} onChange={(e) => set(f.path, e.target.value)} />
+              )}
+              {f.kind === "fixed" && (
+                <div className="flex flex-col gap-1">
+                  <span className="text-sm text-muted">{f.label}</span>
+                  <span className="text-sm" data-fixed={f.path}>{f.options?.[0]?.label ?? String(v)}</span>
+                  <span className="text-xs text-muted">Пока поддерживается только это значение</span>
+                </div>
               )}
               {f.kind === "select" && (
                 <fieldset disabled={disabled} className="contents">

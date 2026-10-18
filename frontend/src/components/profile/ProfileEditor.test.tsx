@@ -71,6 +71,19 @@ describe("ProfileEditor", () => {
     expect(body.name).toBe("Мой");
   });
 
+  it("число вне пределов приводится к ним при уходе из поля", async () => {
+    render(<ProfileEditor id="own" />);
+    const left = await screen.findByLabelText("Левое поле");
+    await userEvent.clear(left);
+    await userEvent.type(left, "99");
+    await userEvent.tab();
+    expect((screen.getByLabelText("Левое поле") as HTMLInputElement).value).toBe("50");
+    await userEvent.click(screen.getByRole("button", { name: "Сохранить" }));
+    await waitFor(() => expect(apiFetch.mock.calls.some((c) => c[1]?.method === "PUT")).toBe(true));
+    const body = JSON.parse(apiFetch.mock.calls.find((c) => c[1]?.method === "PUT")![1].body);
+    expect(body.rules["page.margins"].value.left_mm).toBe(50);
+  });
+
   it("правило без описания показывается в «Другом»", async () => {
     render(<ProfileEditor id="own" />);
     await userEvent.click(await screen.findByRole("button", { name: /Другое/ }));
