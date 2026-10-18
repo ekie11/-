@@ -1,0 +1,126 @@
+export type GroupId =
+  | "page" | "body" | "headings" | "structure" | "numbering"
+  | "captions" | "formulas" | "lists" | "sources" | "typography";
+
+export const GROUPS: { id: GroupId; label: string }[] = [
+  { id: "page", label: "Страница" },
+  { id: "body", label: "Основной текст" },
+  { id: "headings", label: "Заголовки" },
+  { id: "structure", label: "Структура" },
+  { id: "numbering", label: "Нумерация страниц" },
+  { id: "captions", label: "Рисунки и таблицы" },
+  { id: "formulas", label: "Формулы" },
+  { id: "lists", label: "Списки" },
+  { id: "sources", label: "Источники" },
+  { id: "typography", label: "Типографика" },
+];
+
+export type FieldDef = {
+  rule: string;
+  path: string;
+  group: GroupId;
+  label: string;
+  kind: "number" | "select" | "bool" | "text";
+  unit?: string;
+  min?: number;
+  max?: number;
+  step?: number;
+  options?: { value: string; label: string }[];
+};
+
+/** Подписи правил (строка правила в редакторе). */
+export const RULE_LABELS: Record<string, string> = {
+  "page.size": "Размер страницы",
+  "page.margins": "Поля",
+  "body.font_name": "Шрифт",
+  "body.font_size": "Размер шрифта",
+  "body.line_spacing": "Межстрочный интервал",
+  "body.first_line_indent": "Абзацный отступ",
+  "body.alignment": "Выравнивание текста",
+  "headings.section": "Заголовки разделов",
+  "headings.structural": "Структурные заголовки",
+  "captions.figure": "Подпись рисунка",
+  "captions.table": "Заголовок таблицы",
+  "page_numbers": "Номер страницы",
+};
+
+const ALIGN = [
+  { value: "justify", label: "по ширине" },
+  { value: "left", label: "по левому краю" },
+  { value: "center", label: "по центру" },
+  { value: "right", label: "по правому краю" },
+];
+
+const mm = (rule: string, path: string, label: string): FieldDef => ({
+  rule, path, group: "page", label, kind: "number", unit: "мм", min: 0, max: 50, step: 1,
+});
+const align = (rule: string, group: GroupId, label = "Выравнивание"): FieldDef => ({
+  rule, path: "align", group, label, kind: "select", options: ALIGN,
+});
+const bool = (rule: string, path: string, group: GroupId, label: string): FieldDef => ({
+  rule, path, group, label, kind: "bool",
+});
+const indent = (rule: string, path: string, group: GroupId, label: string): FieldDef => ({
+  rule, path, group, label, kind: "number", unit: "см", min: 0, max: 3, step: 0.05,
+});
+const pt = (rule: string, path: string, label: string): FieldDef => ({
+  rule, path, group: "body", label, kind: "number", unit: "пт", min: 8, max: 20, step: 0.5,
+});
+
+export const FIELDS: FieldDef[] = [
+  {
+    rule: "page.size", path: "format", group: "page", label: "Формат", kind: "select",
+    options: [{ value: "A4", label: "A4" }, { value: "A3", label: "A3" }, { value: "A5", label: "A5" }],
+  },
+  {
+    rule: "page.size", path: "orientation", group: "page", label: "Ориентация", kind: "select",
+    options: [{ value: "portrait", label: "книжная" }, { value: "landscape", label: "альбомная" }],
+  },
+  mm("page.margins", "top_mm", "Верхнее поле"),
+  mm("page.margins", "bottom_mm", "Нижнее поле"),
+  mm("page.margins", "left_mm", "Левое поле"),
+  mm("page.margins", "right_mm", "Правое поле"),
+  { rule: "body.font_name", path: "name", group: "body", label: "Гарнитура", kind: "text" },
+  pt("body.font_size", "min_pt", "Минимальный кегль"),
+  pt("body.font_size", "target_pt", "Основной кегль"),
+  {
+    rule: "body.line_spacing", path: "multiple", group: "body", label: "Интервал", kind: "number",
+    unit: "×", min: 1, max: 3, step: 0.05,
+  },
+  indent("body.first_line_indent", "cm", "body", "Отступ первой строки"),
+  align("body.alignment", "body"),
+  bool("headings.section", "bold", "headings", "Полужирный"),
+  align("headings.section", "headings"),
+  indent("headings.section", "first_line_indent_cm", "headings", "Отступ первой строки"),
+  bool("headings.section", "trailing_period", "headings", "Точка в конце"),
+  bool("headings.section", "page_break_before_level1", "headings", "Раздел с новой страницы"),
+  bool("headings.structural", "bold", "structure", "Полужирный"),
+  align("headings.structural", "structure"),
+  bool("headings.structural", "uppercase", "structure", "Прописные буквы"),
+  bool("headings.structural", "trailing_period", "structure", "Точка в конце"),
+  bool("headings.structural", "page_break_before", "structure", "С новой страницы"),
+  {
+    rule: "page_numbers", path: "position", group: "numbering", label: "Положение", kind: "select",
+    options: [
+      { value: "bottom_center", label: "внизу по центру" },
+      { value: "bottom_right", label: "внизу справа" },
+      { value: "bottom_left", label: "внизу слева" },
+      { value: "top_center", label: "вверху по центру" },
+      { value: "top_right", label: "вверху справа" },
+    ],
+  },
+  bool("page_numbers", "show_on_first", "numbering", "Номер на первой странице"),
+  { rule: "captions.figure", path: "pattern", group: "captions", label: "Шаблон подписи рисунка", kind: "text" },
+  {
+    rule: "captions.figure", path: "position", group: "captions", label: "Положение подписи рисунка", kind: "select",
+    options: [{ value: "below", label: "под рисунком" }, { value: "above", label: "над рисунком" }],
+  },
+  align("captions.figure", "captions", "Выравнивание подписи рисунка"),
+  { rule: "captions.table", path: "pattern", group: "captions", label: "Шаблон заголовка таблицы", kind: "text" },
+  {
+    rule: "captions.table", path: "position", group: "captions", label: "Положение заголовка таблицы", kind: "select",
+    options: [{ value: "above", label: "над таблицей" }, { value: "below", label: "под таблицей" }],
+  },
+  align("captions.table", "captions", "Выравнивание заголовка таблицы"),
+  indent("captions.table", "first_line_indent_cm", "captions", "Отступ заголовка таблицы"),
+];
