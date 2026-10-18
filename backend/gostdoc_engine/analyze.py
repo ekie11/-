@@ -44,6 +44,14 @@ _HEADING_ROLES = {1: Role.HEADING_1, 2: Role.HEADING_2, 3: Role.HEADING_3}
 _TOC_PAGE = re.compile(r"(\.{2,}|…+|\t|\s{2,})?\s*\d{1,4}\s*$")
 
 
+_LEADER_PAGE = re.compile(r"(\.{2,}|…|\t)\s*\d{1,4}\s*$")
+
+
+def looks_like_leader_line(text: str) -> bool:
+    """Строка заканчивается отточием или табуляцией и номером страницы."""
+    return bool(_LEADER_PAGE.search(text))
+
+
 def toc_keys(text: str) -> set[str]:
     """Нормализованные формы текста пункта оглавления: как есть и без номера страницы."""
 
@@ -92,6 +100,8 @@ def classify_text(text: str, bold: bool) -> Role | None:
     t = text.strip()
     if not t:
         return None
+    if looks_like_leader_line(t):
+        return None  # строка оглавления, не заголовок
     if _is_structural(t):
         return Role.STRUCTURAL
     if _FIGURE.match(t):

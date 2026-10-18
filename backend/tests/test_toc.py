@@ -256,7 +256,7 @@ def test_e_body_line_with_number_stays():
     blocks = T + [("p", "Выручка за 2020 год составила  15"), ("p", "Дальше текст."),
                   ("h1", "1 Обзор"), ("p", "Тело.")]
     _, after, d = _format_words(blocks)
-    assert "Выручка за 2020 год составила  15" in after and len(_links(d)) == 1
+    assert "Выручка за 2020 год составила  15" in after and len(_links(d)) == 0
 
 
 def test_f_sentence_equal_to_later_heading_in_region_is_entry():
@@ -287,3 +287,36 @@ def test_deleting_body_paragraph_still_raises(monkeypatch):
 def test_check_silent_without_headings():
     res = process(save(build_docx(T + [("p", "Введение ....... 3")])), P, "check")
     assert not [i for i in res.report["issues"] if i["rule"] == "toc"]
+
+
+MISMATCH = ("Содержание набрано вручную и не совпадает с заголовками — автоматическое "
+            "оглавление не вставлено, проверьте содержание вручную")
+
+
+def _skipped(blocks):
+    before, after, d = _format_words(blocks)
+    assert [t.casefold() for t in after] == [t.casefold() for t in before]
+    assert _instr(d) == [] and _links(d) == []
+    res = process(save(build_docx(blocks, use_heading_styles=False)), P, "format")
+    msgs = [i["message"] for i in res.report["issues"] if i["rule"] == "toc"]
+    assert msgs == [MISMATCH]
+
+
+def test_unmatched_leader_lines_skip_with_issue():
+    # a: «Введение ... 3» не совпадает ни с каким заголовком
+    _skipped(T + [("p", "Введение ....... 3"), ("p", "1 Обзор ....... 4"), ("h1", "1 Обзор"),
+                  ("p", "Важный текст.")])
+    # c
+    _skipped(T + [("p", "Введение ....... 3"), ("p", "1 Обзор ....... 4"), ("h1", "1 Обзор"),
+                  ("p", "Тело."), ("structural", "ЗАКЛЮЧЕНИЕ"), ("p", "Вывод.")])
+
+
+def test_original_b_no_pages_skipped():
+    _skipped(T + [("p", "Введение"), ("p", "1 Обзор"), ("h1", "1 Обзор"),
+                  ("p", "Важный текст тела раздела.")])
+
+
+def test_leader_line_is_never_heading():
+    from gostdoc_engine.analyze import classify_text
+    assert classify_text("1 Обзор ....... 4", True) is None
+    assert classify_text("1 Обзор\t4", True) is None

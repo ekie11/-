@@ -7,7 +7,7 @@ from docx.oxml.ns import nsdecls, qn
 from docx.text.paragraph import Paragraph
 
 from . import units
-from .analyze import toc_field_paragraphs, toc_keys
+from .analyze import _style_heading_role, looks_like_leader_line, toc_field_paragraphs, toc_keys
 from .model import DocModel, DocParagraph, Role
 
 TOC_INSTR = ' TOC \\o "1-3" \\h \\z \\u '
@@ -54,6 +54,32 @@ def _entries(model: DocModel) -> list[tuple[DocParagraph, int]]:
         if level is not None and p.text.strip():
             out.append((p, level))
     return out
+
+
+_HEADLIKE = (Role.STRUCTURAL, Role.HEADING_1, Role.HEADING_2, Role.HEADING_3)
+
+
+def manual_toc_problem(model: DocModel) -> bool:
+    """Ручное содержание не удаётся надёжно сопоставить с заголовками — оглавление не строится."""
+    heading = toc_heading(model)
+    if heading is None:
+        return False
+    after = [p for p in model.paragraphs
+             if p.index > heading.index and p.role not in (Role.EMPTY, Role.IN_TABLE)]
+    styled = {p.index: _style_heading_role(p.para) is not None for p in after}
+    # строки с отточием/страницей, не подтверждённые заголовками, до следующего раздела
+    for p in after:
+        if p.role == Role.STRUCTURAL or styled[p.index]:
+            break
+        if p.role != Role.TOC and looks_like_leader_line(p.text):
+            return True
+    if not after or after[0].role == Role.TOC or styled[after[0].index]:
+        return False
+    first = after[0]
+    if first.role not in _HEADLIKE:
+        return True  # обычный текст сразу после СОДЕРЖАНИЕ — не ясно, что это
+    # два неоформленных заголовка подряд — вероятно, список без номеров страниц
+    return (len(after) > 1 and after[1].role in _HEADLIKE and not styled[after[1].index])
 
 
 def has_entries(model: DocModel) -> bool:
@@ -332,7 +358,7 @@ def build_toc(model: DocModel) -> int:
     """Вставить (или заменить) поле оглавления после «СОДЕРЖАНИЕ»; вернуть число пунктов."""
     heading = toc_heading(model)
     entries = _entries(model)
-    if heading is None or not entries:
+    if heading is None or not entries or manual_toc_problem(model):
         return 0
     doc = model.doc
     _verify_old_toc(model, [p for p in model.paragraphs if p.index > heading.index])
