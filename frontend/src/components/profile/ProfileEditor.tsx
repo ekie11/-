@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/Button";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { TextField } from "@/components/ui/TextField";
 import { ApiError, apiFetch, type Profile } from "@/lib/api";
+import { useProfileFields, type FieldDef } from "@/lib/fields";
 import { groupHasDiff, unknownRules } from "@/lib/profileForm";
-import { FIELDS, GROUPS, type FieldDef } from "@/lib/ruleSchema";
 import { GroupNav } from "./GroupNav";
 import { RuleRow } from "./RuleRow";
 
@@ -26,7 +26,9 @@ export function ProfileEditor({ id }: { id: string }) {
   const [base, setBase] = useState<Profile | null>(null);
   const [name, setName] = useState("");
   const [rules, setRules] = useState<Rules>({});
-  const [group, setGroup] = useState<string>(GROUPS[0].id);
+  const pf = useProfileFields();
+  const fields = useMemo(() => (pf.status === "ready" ? pf.fields : []), [pf]);
+  const [group, setGroup] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -64,19 +66,22 @@ export function ProfileEditor({ id }: { id: string }) {
   }, [dirty]);
 
   const current = useMemo(() => ({ rules }), [rules]);
-  const others = useMemo(() => unknownRules(current), [current]);
+  const others = useMemo(() => unknownRules(current, fields), [current, fields]);
 
-  if (!loaded) return error ? <ErrorBanner message={error} /> : <p className="text-muted">Загрузка…</p>;
+  if (pf.status === "error") return <ErrorBanner message="Не удалось загрузить описание полей" />;
+  if (!loaded || pf.status !== "ready") return error ? <ErrorBanner message={error} /> : <p className="text-muted">Загрузка…</p>;
+  const { groups, ruleLabels } = pf;
+  const activeGroup = group ?? groups[0].id;
 
   const readonly = loaded.readonly;
   const ret = isWizard ? "?return=wizard" : "";
   const navItems = [
-    ...GROUPS.map((g) => ({ id: g.id as string, label: g.label, diff: groupHasDiff(current, base, g.id) })),
+    ...groups.map((g) => ({ id: g.id, label: g.label, diff: groupHasDiff(current, base, g.id, fields) })),
     ...(others.length ? [{ id: OTHER, label: "Другое", diff: false }] : []),
   ];
 
-  const ruleIds = [...new Set(FIELDS.filter((f) => f.group === group).map((f) => f.rule))].filter((r) => r in rules);
-  const byRule = (r: string): FieldDef[] => FIELDS.filter((f) => f.rule === r);
+  const ruleIds = [...new Set(fields.filter((f) => f.group === activeGroup).map((f) => f.rule))].filter((r) => r in rules);
+  const byRule = (r: string): FieldDef[] => fields.filter((f) => f.rule === r);
 
   async function save() {
     setBusy(true);
@@ -141,9 +146,9 @@ export function ProfileEditor({ id }: { id: string }) {
       </div>
       {error && <ErrorBanner message={error} />}
       <div className="flex flex-col gap-4 md:flex-row">
-        <GroupNav items={navItems} active={group} onSelect={setGroup} />
+        <GroupNav items={navItems} active={activeGroup} onSelect={setGroup} />
         <div className="flex flex-1 flex-col gap-3">
-          {group === OTHER ? (
+          {activeGroup === OTHER ? (
             others.map((r) => (
               <div key={r} className="rounded-md border border-line px-4 py-3">
                 <p className="text-sm font-medium">{r}</p>
@@ -156,7 +161,7 @@ export function ProfileEditor({ id }: { id: string }) {
             ruleIds.map((r) => (
               <RuleRow
                 key={r}
-                ruleId={r}
+                label={ruleLabels[r] ?? r}
                 fields={byRule(r)}
                 rule={rules[r] as Rule}
                 baseRule={base?.rules[r] as Rule | undefined}

@@ -4,12 +4,12 @@ import { Select } from "@/components/ui/Select";
 import { Switch } from "@/components/ui/Switch";
 import { TextField } from "@/components/ui/TextField";
 import { differs, getAt, setAt } from "@/lib/profileForm";
-import { RULE_LABELS, type FieldDef } from "@/lib/ruleSchema";
+import type { FieldDef } from "@/lib/fields";
 
 type Rule = { value?: unknown; severity?: string; enabled?: boolean; source?: string; [k: string]: unknown };
 
 type Props = {
-  ruleId: string;
+  label: string;
   fields: FieldDef[];
   rule: Rule;
   baseRule?: Rule;
@@ -54,7 +54,7 @@ function NumberField({ f, value, disabled, onCommit }: { f: FieldDef; value?: nu
   );
 }
 
-export function RuleRow({ ruleId, fields, rule, baseRule, disabled, onChange }: Props) {
+export function RuleRow({ label, fields, rule, baseRule, disabled, onChange }: Props) {
   const diff = differs(rule, baseRule);
   const set = (path: string, v: unknown) => onChange({ ...rule, value: setAt(rule.value, path, v) });
   return (
@@ -62,7 +62,7 @@ export function RuleRow({ ruleId, fields, rule, baseRule, disabled, onChange }: 
       data-differs={diff}
       className={`flex flex-col gap-3 rounded-md border px-4 py-3 ${diff ? "border-accent bg-line" : "border-line"}`}
     >
-      <legend className="px-1 text-sm font-medium">{RULE_LABELS[ruleId] ?? ruleId}</legend>
+      <legend className="px-1 text-sm font-medium">{label}</legend>
       <div className="flex flex-wrap items-center gap-4">
         <Switch label="проверять" checked={rule.enabled !== false} onChange={(c) => !disabled && onChange({ ...rule, enabled: c })} />
         <span className="text-sm text-muted">{rule.severity === "recommendation" ? "рекомендация" : "ошибка"}</span>

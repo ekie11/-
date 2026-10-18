@@ -29,6 +29,8 @@ KNOWN_RULE_KEYS: frozenset[str] = frozenset(
 
 DEFAULT_PROFILE_ID = "gost-7.32-2017"
 PROFILES_DIR = Path(__file__).resolve().parent.parent / "profiles"
+# Не профиль, а описание полей редактора (отдаёт API).
+FIELDS_FILE = "fields.json"
 
 
 class RuleConfig(BaseModel):
@@ -63,12 +65,12 @@ def builtin_profile(profile_id: str) -> Profile:
         raise ValueError(f"Недопустимый идентификатор профиля: {profile_id!r}")
     filename = profile_id.replace("-", "_").replace(".", "_") + ".json"
     path = PROFILES_DIR / filename
-    if not path.is_file():
+    if filename == FIELDS_FILE or not path.is_file():
         raise ValueError(f"Неизвестный профиль: {profile_id}")
     return load_profile(path)
 
 
 def list_builtin_profiles() -> list[Profile]:
-    profiles = [load_profile(p) for p in sorted(PROFILES_DIR.glob("*.json"))]
+    profiles = [load_profile(p) for p in sorted(PROFILES_DIR.glob("*.json")) if p.name != FIELDS_FILE]
     # ГОСТ 7.32-2017 — профиль по умолчанию, всегда первый
     return sorted(profiles, key=lambda p: p.id != DEFAULT_PROFILE_ID)

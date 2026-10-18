@@ -1,5 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const push = vi.fn();
@@ -15,6 +17,11 @@ vi.mock("@/lib/api", async (orig) => ({
 }));
 
 import { ProfileEditor } from "./ProfileEditor";
+
+const FIELDS_JSON = JSON.parse(
+  readFileSync(path.resolve(__dirname, "../../../../backend/profiles/fields.json"), "utf8"),
+);
+let fieldsResponse: unknown;
 
 const R = (v: unknown, extra = {}) => ({ value: v, severity: "error", enabled: true, source: "п. 6.1.1", ...extra });
 const GOST = {
@@ -33,8 +40,10 @@ const OWN = {
 beforeEach(() => {
   push.mockReset();
   search = "";
+  fieldsResponse = { ...structuredClone(FIELDS_JSON), extraction_enabled: false };
   apiFetch.mockReset().mockImplementation(async (path: string, init?: RequestInit) => {
     if (init?.method === "PUT") return JSON.parse(init.body as string);
+    if (path === "/profile-fields") return structuredClone(fieldsResponse);
     if (path === "/profiles/own") return structuredClone(OWN);
     if (path === "/profiles/gost") return structuredClone(GOST);
     throw new Error(path);
@@ -42,6 +51,20 @@ beforeEach(() => {
 });
 
 describe("ProfileEditor", () => {
+  it("рисует поля и подписи из ответа API", async () => {
+    fieldsResponse = {
+      groups: [{ id: "page", label: "Моя группа" }],
+      rule_labels: { "page.margins": "Мои поля" },
+      fields: [{ rule: "page.margins", path: "top_mm", group: "page", label: "Верх из API", kind: "number", unit: "мм", min: 0, max: 50, step: 1 }],
+      extraction_enabled: false,
+    };
+    render(<ProfileEditor id="own" />);
+    expect(await screen.findByLabelText("Верх из API")).toBeInTheDocument();
+    expect(screen.getByText("Мои поля")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Моя группа/ })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Левое поле")).toBeNull();
+  });
+
   it("изменение поля подсвечивает строку и группу, возврат снимает", async () => {
     render(<ProfileEditor id="own" />);
     const left = await screen.findByLabelText("Левое поле");
@@ -95,6 +118,7 @@ describe("ProfileEditor", () => {
 
   it("фиксированное поле без значения показывает вариант по умолчанию без предупреждения", async () => {
     apiFetch.mockImplementation(async (path: string) => {
+      if (path === "/profile-fields") return structuredClone(fieldsResponse);
       if (path === "/profiles/own") {
         const p = structuredClone(OWN) as typeof OWN & { rules: Record<string, unknown> };
         p.rules["captions.figure"] = R({ pattern: "Рисунок {n} — {title}", align: "center" });
@@ -110,6 +134,7 @@ describe("ProfileEditor", () => {
 
   it("неподдерживаемое сохранённое значение не скрывается", async () => {
     apiFetch.mockImplementation(async (path: string) => {
+      if (path === "/profile-fields") return structuredClone(fieldsResponse);
       if (path === "/profiles/own") {
         const p = structuredClone(OWN) as typeof OWN & { rules: Record<string, unknown> };
         p.rules["captions.figure"] = R({ pattern: "Рисунок {n} — {title}", position: "above", align: "center" });

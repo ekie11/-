@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { Profile } from "./api";
+import type { FieldDef } from "./fields";
 import { differs, getAt, groupHasDiff, setAt, unknownRules } from "./profileForm";
+
+const FIELDS: FieldDef[] = [
+  { rule: "page.margins", path: "left_mm", group: "page", label: "Левое поле", kind: "number" },
+  { rule: "body.alignment", path: "align", group: "body", label: "Выравнивание", kind: "select" },
+];
 
 const rule = (left: number) => ({ value: { left_mm: left, nest: { a: 1 } }, severity: "error", enabled: true });
 const base: Profile = { id: "g", name: "G", base: null, readonly: true, rules: { "page.margins": rule(30), "body.alignment": { value: { align: "justify" }, severity: "error", enabled: true } } };
@@ -26,11 +32,11 @@ describe("profileForm", () => {
   });
   it("groupHasDiff", () => {
     const own: Profile = { ...base, readonly: false, rules: { ...base.rules, "page.margins": rule(25) } };
-    expect(groupHasDiff(own, base, "page")).toBe(true);
-    expect(groupHasDiff(own, base, "body")).toBe(false);
-    expect(groupHasDiff(base, base, "page")).toBe(false);
+    expect(groupHasDiff(own, base, "page", FIELDS)).toBe(true);
+    expect(groupHasDiff(own, base, "body", FIELDS)).toBe(false);
+    expect(groupHasDiff(base, base, "page", FIELDS)).toBe(false);
   });
   it("unknownRules", () => {
-    expect(unknownRules({ ...base, rules: { ...base.rules, "x.y": {} } })).toEqual(["x.y"]);
+    expect(unknownRules({ ...base, rules: { ...base.rules, "x.y": {} } }, FIELDS)).toEqual(["x.y"]);
   });
 });

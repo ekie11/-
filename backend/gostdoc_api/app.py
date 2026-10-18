@@ -131,6 +131,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(auth_routes.router)
     app.include_router(profiles_routes.router)
+    app.include_router(profiles_routes.fields_router)
     app.include_router(jobs_routes.router)
 
     @app.exception_handler(RequestValidationError)

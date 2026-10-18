@@ -10,11 +10,13 @@ from pydantic import BaseModel, Field, ValidationError
 
 from gostdoc_engine.profile import Profile
 
+from .. import fields as fields_mod
 from .. import profiles_service as svc
 from ..auth import COOKIE_NAME, DbDep, UserDep, _find_session
 from ..models import User
 
 router = APIRouter(prefix="/profiles", tags=["profiles"])
+fields_router = APIRouter(tags=["profiles"])
 
 FORBIDDEN = "Готовый ГОСТ-профиль нельзя изменить — создайте свой на его основе"
 NOT_FOUND = "Профиль не найден"
@@ -166,3 +168,9 @@ def export_profile(profile_id: str, db: DbDep, user: UserDep) -> Response:
         media_type="application/json",
         headers={"Content-Disposition": f'attachment; filename="{profile.id}.json"'},
     )
+
+
+@fields_router.get("/profile-fields")
+def profile_fields(request: Request) -> dict:
+    enabled = bool(request.app.state.settings.llm_api_key)
+    return {**fields_mod.load_fields(), "extraction_enabled": enabled}
