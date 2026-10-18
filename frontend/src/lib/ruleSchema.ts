@@ -128,11 +128,8 @@ export const FIELDS: FieldDef[] = [
     options: [{ value: "7.0.100-2018", label: "ГОСТ Р 7.0.100-2018" }],
   },
   {
-    rule: "bibliography", path: "order", group: "sources", label: "Порядок источников", kind: "select",
-    options: [
-      { value: "mention", label: "по порядку упоминания" },
-      { value: "alphabet", label: "по алфавиту" },
-    ],
+    rule: "bibliography", path: "order", group: "sources", label: "Порядок источников", kind: "fixed",
+    options: [{ value: "mention", label: "по порядку упоминания" }],
   },
   {
     rule: "bibliography", path: "citation_format", group: "sources", label: "Формат ссылки", kind: "fixed",

@@ -73,6 +73,7 @@ describe("ruleSchema", () => {
     const fixed = FIELDS.filter((f) => f.kind === "fixed").map((f) => `${f.rule}.${f.path}=${f.options?.map((o) => o.value)}`);
     expect(fixed.sort()).toEqual([
       "bibliography.citation_format=[N]",
+      "bibliography.order=mention",
       "bibliography.standard=7.0.100-2018",
       "captions.figure.position=below",
       "captions.table.position=above",
