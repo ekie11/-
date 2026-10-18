@@ -41,7 +41,19 @@ _LIST_STYLE = re.compile(r"^(?:list|список)", re.IGNORECASE)
 _HEADING_ROLES = {1: Role.HEADING_1, 2: Role.HEADING_2, 3: Role.HEADING_3}
 
 
-_TOC_ENTRY = re.compile(r"(\.{2,}|\t|\s{2,})\s*\d{1,4}\s*$")
+_TOC_PAGE = re.compile(r"(\.{2,}|…+|\t|\s{2,})?\s*\d{1,4}\s*$")
+
+
+def toc_keys(text: str) -> set[str]:
+    """Нормализованные формы текста пункта оглавления: как есть и без номера страницы."""
+
+    def key(t: str) -> str:
+        return " ".join(t.split()).casefold().rstrip(".").strip()
+
+    stripped = _TOC_PAGE.sub("", text).rstrip(" .…\t")
+    return {k for k in (key(text), key(stripped)) if k}
+
+
 _TOC_INSTR = re.compile(r"\s*TOC\b")
 
 
@@ -186,21 +198,14 @@ def analyze(doc) -> DocModel:
         orig = {p.index: p.role for p in items}
         head_roles = (Role.STRUCTURAL, Role.HEADING_1, Role.HEADING_2, Role.HEADING_3)
         def repeated_later(p) -> bool:
-            return any(q.index > p.index and orig[q.index] in head_roles and norm(q) == norm(p)
-                       for q in items)
+            keys = toc_keys(p.text)
+            return any(q.index > p.index and orig[q.index] in head_roles
+                       and toc_keys(q.text) & keys for q in items)
 
         for p in items[toc_start + 1 :]:
             if p.role in (Role.EMPTY, Role.IN_TABLE):
                 continue
-            if p.role == Role.STRUCTURAL:
-                # «Введение» без номера страницы, а настоящий заголовок ниже
-                if repeated_later(p):
-                    p.role = Role.TOC
-                    continue
-                break
-            if p.index in style_based:
-                break
-            if p.para._p in in_field or looks_like_toc_entry(p.text) or repeated_later(p):
+            if p.para._p in in_field or (p.index not in style_based and repeated_later(p)):
                 p.role = Role.TOC
                 continue
             break

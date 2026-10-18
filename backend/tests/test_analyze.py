@@ -69,6 +69,7 @@ def test_toc_and_title_page():
                 ("p", "1 Обзор ..... 3"),
                 ("structural", "ВВЕДЕНИЕ"),
                 ("p", "Текст"),
+                ("h1", "1 Обзор"),
             ]
         )
     )
@@ -78,6 +79,7 @@ def test_toc_and_title_page():
         Role.TOC,
         Role.STRUCTURAL,
         Role.BODY,
+        Role.HEADING_1,
     ]
 
 

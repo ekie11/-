@@ -7,6 +7,7 @@ from docx.oxml.ns import nsdecls, qn
 from docx.text.paragraph import Paragraph
 
 from . import units
+from .analyze import toc_field_paragraphs, toc_keys
 from .model import DocModel, DocParagraph, Role
 
 TOC_INSTR = ' TOC \\o "1-3" \\h \\z \\u '
@@ -297,8 +298,22 @@ def _is_toc_sdt(el) -> bool:
     return any(re.match(r"\s*TOC\b", t.text or "") for t in el.iter(qn("w:instrText")))
 
 
+def _verify_old_toc(model: DocModel, after: list[DocParagraph]) -> None:
+    """Страховка: удаляются только пункты оглавления (в поле или повторённые ниже как заголовки)."""
+    in_field = toc_field_paragraphs(model.doc)
+    heads = [q for q in model.paragraphs
+             if q.role in (Role.STRUCTURAL, Role.HEADING_1, Role.HEADING_2, Role.HEADING_3)]
+    for p in after:
+        if p.role != Role.TOC or p.para._p in in_field:
+            continue
+        keys = toc_keys(p.text)
+        if not any(q.index > p.index and toc_keys(q.text) & keys for q in heads):
+            raise RuntimeError("Не удалось заменить содержание автоматически")
+
+
 def _remove_old_toc(model: DocModel, heading: DocParagraph) -> None:
     after = [p for p in model.paragraphs if p.index > heading.index]
+    _verify_old_toc(model, after)
     stop = next((p for p in after if p.role == Role.STRUCTURAL), None)
     stop_el = stop.para._p if stop is not None else None
     for sib in list(heading.para._p.itersiblings()):
@@ -320,6 +335,7 @@ def build_toc(model: DocModel) -> int:
     if heading is None or not entries:
         return 0
     doc = model.doc
+    _verify_old_toc(model, [p for p in model.paragraphs if p.index > heading.index])
     max_id, max_num = _bookmark_state(doc)
     anchors = []
     for p, _level in entries:

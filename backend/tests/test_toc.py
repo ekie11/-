@@ -226,12 +226,12 @@ def _format_words(blocks):
 
 
 def test_repro_a_pages_no_loss():
-    blocks = T + [("p", "Введение ....... 3"), ("p", "1 Обзор ....... 4"), ("h1", "1 Обзор"),
+    blocks = T + [("p", "1 Обзор ....... 4"), ("h1", "1 Обзор"),
                   ("p", "Важный текст."), ("p", "Ещё абзац.")]
     _, after, d = _format_words(blocks)
     assert "Важный текст." in after and "Ещё абзац." in after
     assert "1 Обзор" in after and len(_instr(d)) == 1 and len(_links(d)) == 1
-    assert "Введение ....... 3" not in after
+    assert "1 Обзор ....... 4" not in after
 
 
 def test_repro_b_entries_without_pages():
@@ -244,11 +244,27 @@ def test_repro_b_entries_without_pages():
 
 
 def test_repro_c_struct_after():
-    blocks = T + [("p", "Введение ....... 3"), ("p", "1 Обзор ....... 4"), ("h1", "1 Обзор"),
+    blocks = T + [("p", "1 Обзор ....... 4"), ("p", "Заключение ..... 9"), ("h1", "1 Обзор"),
                   ("p", "Тело."), ("structural", "ЗАКЛЮЧЕНИЕ"), ("p", "Вывод.")]
     _, after, d = _format_words(blocks)
     assert "Тело." in after and "1 Обзор" in after and "Вывод." in after
+    assert "Заключение ..... 9" not in after
     assert len(_links(d)) == 2
+
+
+def test_e_body_line_with_number_stays():
+    blocks = T + [("p", "Выручка за 2020 год составила  15"), ("p", "Дальше текст."),
+                  ("h1", "1 Обзор"), ("p", "Тело.")]
+    _, after, d = _format_words(blocks)
+    assert "Выручка за 2020 год составила  15" in after and len(_links(d)) == 1
+
+
+def test_f_sentence_equal_to_later_heading_in_region_is_entry():
+    # допущение: строка сразу после СОДЕРЖАНИЕ, равная заголовку ниже, считается пунктом
+    blocks = T + [("p", "1 Обзор"), ("p", "Дальше текст."), ("h1", "1 Обзор"), ("p", "Тело.")]
+    _, after, d = _format_words(blocks)
+    assert "Дальше текст." in after and "Тело." in after
+    assert len(_links(d)) == 1 and "1 Обзор" not in [t for t in after if "\t" not in t][:3]
 
 
 def test_deleting_body_paragraph_still_raises(monkeypatch):
