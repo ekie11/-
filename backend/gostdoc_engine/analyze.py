@@ -57,11 +57,6 @@ def toc_keys(text: str) -> set[str]:
 _TOC_INSTR = re.compile(r"\s*TOC\b")
 
 
-def looks_like_toc_entry(text: str) -> bool:
-    """Строка похожа на пункт оглавления: заканчивается номером страницы после точек/табуляции."""
-    return bool(_TOC_ENTRY.search(text))
-
-
 def toc_field_paragraphs(doc) -> set:
     """Элементы w:p, находящиеся внутри поля TOC (между begin и end)."""
     inside: set = set()
