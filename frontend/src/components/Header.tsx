@@ -31,7 +31,7 @@ export function Header() {
         </nav>
         {me ? (
           <div className="flex items-center gap-3">
-            <span className="text-muted">{me.email}</span>
+            <Link href="/account" className="text-muted hover:text-accent">{me.email ?? me.telegram_name ?? "Аккаунт"}</Link>
             <Button variant="link" onClick={logout}>Выйти</Button>
           </div>
         ) : (

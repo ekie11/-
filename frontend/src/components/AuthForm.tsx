@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
-import { ApiError, apiFetch } from "@/lib/api";
+import { api, ApiError, apiFetch, type TelegramAuthData } from "@/lib/api";
 import { safeNext } from "@/lib/nav";
+import { useBotUsername } from "@/lib/useBotUsername";
 import { useMe } from "@/lib/useMe";
+import { TelegramLogin } from "./TelegramLogin";
 import { Button } from "./ui/Button";
 import { ErrorBanner } from "./ui/ErrorBanner";
 import { TextField } from "./ui/TextField";
@@ -14,6 +16,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const router = useRouter();
   const params = useSearchParams();
   const { refresh } = useMe();
+  const botUsername = useBotUsername();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +40,17 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
     }
   }
 
+  async function telegramAuth(data: TelegramAuthData) {
+    setError(null);
+    try {
+      await api.telegramLogin(data);
+      await refresh();
+      router.replace(safeNext(next));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail : "Не удалось выполнить запрос");
+    }
+  }
+
   return (
     <div className="mx-auto max-w-sm">
       <h1 className="mb-4 text-2xl font-semibold">{isLogin ? "Вход" : "Регистрация"}</h1>
@@ -56,6 +70,12 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         </div>
         <Button type="submit" variant="primary" loading={busy}>{isLogin ? "Войти" : "Зарегистрироваться"}</Button>
       </form>
+      {botUsername && (
+        <div className="mt-4 flex flex-col items-start gap-2">
+          <p className="text-sm text-muted">или</p>
+          <TelegramLogin botUsername={botUsername} onAuth={telegramAuth} />
+        </div>
+      )}
       <p className="mt-4 text-sm text-muted">
         {isLogin ? "Нет аккаунта? " : "Уже есть аккаунт? "}
         <Link href={otherHref} className="text-accent underline underline-offset-2">{isLogin ? "Зарегистрироваться" : "Войти"}</Link>

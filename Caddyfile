@@ -1,5 +1,8 @@
 # Сейчас: домена нет, работаем по HTTP на IP сервера.
 :80 {
+	request_header -X-Bot-Secret
+	request_header -X-Telegram-User
+	request_header -X-Telegram-Name
 	request_body {
 		max_size 22MB
 	}
@@ -13,6 +16,9 @@
 # Caddy сам получит и будет продлевать сертификат Let's Encrypt.
 #
 # example.ru {
+# 	request_header -X-Bot-Secret
+# 	request_header -X-Telegram-User
+# 	request_header -X-Telegram-Name
 # 	request_body {
 # 		max_size 22MB
 # 	}

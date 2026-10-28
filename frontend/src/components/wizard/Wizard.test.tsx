@@ -9,7 +9,7 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push, back: vi.fn() }),
   useSearchParams: () => new URLSearchParams(search),
 }));
-let me: { id: number; email: string } | null = null;
+let me: { id: number; email: string | null; telegram_name: string | null; telegram_linked: boolean } | null = null;
 vi.mock("@/lib/useMe", () => ({ useMe: () => ({ me, loading: false, refresh: vi.fn() }) }));
 const apiFetch = vi.fn();
 const apiUpload = vi.fn();
@@ -72,7 +72,7 @@ describe("Wizard", () => {
   });
 
   it("вошедшему ссылка «Настроить свои требования»", async () => {
-    me = { id: 1, email: "a@b.c" };
+    me = { id: 1, email: "a@b.c", telegram_name: null, telegram_linked: false };
     await toStep2();
     expect(await screen.findByRole("link", { name: "Настроить свои требования" })).toHaveAttribute(
       "href",

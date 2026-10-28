@@ -12,6 +12,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from .auth import COOKIE_NAME, DbDep, _aware, _find_session, _token_hash
+from .bot_auth import bot_user
 from .config import Settings
 from .models import GuestSession, Job, User
 
@@ -52,6 +53,9 @@ def _set_guest_cookie(response: Response, token: str, secure: bool) -> None:
 
 
 def _owner(request: Request, db: Session, create: bool) -> Owner:
+    bot = bot_user(request, db)
+    if bot is not None:
+        return Owner(bot, None)
     row = _find_session(db, request.cookies.get(COOKIE_NAME))
     user = db.get(User, row.user_id) if row else None
     if user is not None:

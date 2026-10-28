@@ -13,6 +13,7 @@ from gostdoc_engine.profile import Profile
 from .. import fields as fields_mod
 from .. import profiles_service as svc
 from ..auth import COOKIE_NAME, DbDep, UserDep, _find_session
+from ..bot_auth import bot_user
 from ..models import User
 
 router = APIRouter(prefix="/profiles", tags=["profiles"])
@@ -56,6 +57,9 @@ def _own_row(db, user, profile_id):
 
 def _optional_user(request: Request, db: DbDep) -> User | None:
     """Пользователь по сессии или None (гость/аноним); гостя не создаёт."""
+    bot = bot_user(request, db)
+    if bot is not None:
+        return bot
     row = _find_session(db, request.cookies.get(COOKIE_NAME))
     return db.get(User, row.user_id) if row else None
 

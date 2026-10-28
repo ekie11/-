@@ -20,6 +20,10 @@ x-backend: &backend
     LLM_TIMEOUT_S: ${LLM_TIMEOUT_S:-120}
     EXTRACT_USER_DAILY: ${EXTRACT_USER_DAILY:-5}
     EXTRACT_GLOBAL_DAILY: ${EXTRACT_GLOBAL_DAILY:-500}
+    TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+    TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
+    BOT_API_SECRET: ${BOT_API_SECRET:-}
+    SITE_URL: ${SITE_URL:-}
 
 services:
   postgres:
@@ -103,6 +107,25 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+
+  bot:
+    <<: *backend
+    init: true
+    # Без TELEGRAM_BOT_TOKEN бот пишет в лог и завершается с кодом 0:
+    # on-failure перезапускает только после сбоев, а не после штатного выхода.
+    restart: on-failure
+    command: ["python", "-m", "gostdoc_bot"]
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      BOT_API_SECRET: ${BOT_API_SECRET:-}
+      API_URL: http://api:8000
+      REDIS_URL: redis://redis:6379/0
+      SITE_URL: ${SITE_URL:-}
+    depends_on:
+      api:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   frontend:
     build:

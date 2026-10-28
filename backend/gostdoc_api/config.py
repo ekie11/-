@@ -29,6 +29,10 @@ class Settings:
     llm_timeout_s: int = 120
     extract_user_daily: int = 5
     extract_global_daily: int = 500
+    telegram_bot_token: str = ""
+    telegram_bot_username: str = ""
+    bot_api_secret: str = ""
+    site_url: str = ""
 
 
 @lru_cache
@@ -50,6 +54,10 @@ def get_settings() -> Settings:
         llm_timeout_s=int(env.get("LLM_TIMEOUT_S", "120")),
         extract_user_daily=int(env.get("EXTRACT_USER_DAILY", "5")),
         extract_global_daily=int(env.get("EXTRACT_GLOBAL_DAILY", "500")),
+        telegram_bot_token=env.get("TELEGRAM_BOT_TOKEN", "").strip(),
+        telegram_bot_username=env.get("TELEGRAM_BOT_USERNAME", "").strip(),
+        bot_api_secret=env.get("BOT_API_SECRET", "").strip(),
+        site_url=env.get("SITE_URL", "").strip(),
         trusted_proxies=tuple(
             p.strip() for p in env.get("TRUSTED_PROXIES", "").split(",") if p.strip()
         ),
