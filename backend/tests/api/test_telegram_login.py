@@ -170,3 +170,19 @@ def test_bot_telegram_id_too_big_401(client, uid):
 
 def test_bot_telegram_id_max_ok(client):
     assert client.get("/auth/me", headers=hdr(str(2**63 - 1))).status_code == 200
+
+
+def test_verify_future_auth_date():
+    now = int(time.time())
+    with pytest.raises(TelegramAuthError):
+        verify(widget(auth_date=now + 301), TOKEN, now)
+    assert verify(widget(auth_date=now + 300), TOKEN, now) == 555
+
+
+def test_link_other_telegram_already_linked_409(client):
+    reg(client)
+    assert client.post("/auth/telegram/link", json=widget(777)).status_code == 200
+    r = client.post("/auth/telegram/link", json=widget(888))
+    assert r.status_code == 409
+    assert r.json()["detail"] == "К аккаунту уже привязан другой Telegram"
+    assert client.post("/auth/telegram/link", json=widget(777)).status_code == 200

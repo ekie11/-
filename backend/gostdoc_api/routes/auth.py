@@ -155,6 +155,8 @@ def telegram_login(body: dict[str, Any], request: Request, response: Response, d
 def telegram_link(body: dict[str, Any], request: Request, user: UserDep, db: DbDep) -> dict:
     tg_id = _verified_telegram_id(request, body)
     taken = HTTPException(status_code=409, detail="Этот Telegram уже привязан к другому аккаунту")
+    if user.telegram_id is not None and user.telegram_id != tg_id:
+        raise HTTPException(status_code=409, detail="К аккаунту уже привязан другой Telegram")
     other = db.scalars(select(User).where(User.telegram_id == tg_id)).first()
     if other is not None and other.id != user.id:
         raise taken

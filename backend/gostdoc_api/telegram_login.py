@@ -6,6 +6,7 @@ import hashlib
 import hmac
 
 MAX_AGE = 86400
+MAX_FUTURE = 300
 MAX_TELEGRAM_ID = 2**63 - 1
 
 
@@ -34,6 +35,6 @@ def verify(data: dict[str, str | int], bot_token: str, now: int) -> int:
     if not (raw_id.isascii() and raw_id.isdigit() and raw_date.isascii() and raw_date.isdigit()):
         raise TelegramAuthError("bad id or auth_date")
     tg_id = int(raw_id)
-    if not 0 < tg_id <= MAX_TELEGRAM_ID or now - int(raw_date) > MAX_AGE:
+    if not 0 < tg_id <= MAX_TELEGRAM_ID or not -MAX_FUTURE <= now - int(raw_date) <= MAX_AGE:
         raise TelegramAuthError("bad id or stale")
     return tg_id
