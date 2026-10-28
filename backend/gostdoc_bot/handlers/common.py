@@ -95,7 +95,7 @@ async def poll(
 
 
 class Availability:
-    """Включена ли «профиль из методички»: 503 от /extractions/quota = выключена.
+    """Включена ли «профиль из методички»: extraction_enabled=false в /profile-fields = выключена.
 
     Ответ держим несколько минут в памяти процесса; при сбое сети кнопку показываем
     и результат не запоминаем.
@@ -118,12 +118,10 @@ class Availability:
             return self._value
         uid, name = who(user)
         try:
-            await self._api.quota(uid, name)
-            value = True
-        except ApiError as exc:
-            if exc.status != 503:
-                return True
-            value = False
+            meta = await self._api.profile_fields(uid, name)
+        except ApiError:
+            return True
+        value = bool(meta.get("extraction_enabled", True))
         self._value, self._until = value, self._clock() + self._ttl
         return value
 

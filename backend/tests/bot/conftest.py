@@ -205,7 +205,9 @@ class FakeApi:
         if path == "/profiles/p1/export":
             return httpx.Response(200, content=b'{"id": "p1"}')
         if path == "/profile-fields":
-            return httpx.Response(200, json=FIELDS)
+            return httpx.Response(
+                200, json={**FIELDS, "extraction_enabled": self.extraction_enabled}
+            )
         if path == "/extractions/quota":
             if not self.extraction_enabled:
                 return httpx.Response(503, json={"detail": "Функция не настроена"})

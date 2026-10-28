@@ -121,7 +121,7 @@ def test_feature_off_hides_menu_button(bot):
 def test_availability_cached_and_network_error_keeps_button(bot):
     bot.say("/start")
     bot.say("/start")
-    quota_calls = [r for r in bot.fake_api.requests if r.url.path == "/extractions/quota"]
+    quota_calls = [r for r in bot.fake_api.requests if r.url.path == "/profile-fields"]
     assert len(quota_calls) == 1
     assert "Создать профиль из методички" in bot.session.button_texts()
 
@@ -129,3 +129,18 @@ def test_availability_cached_and_network_error_keeps_button(bot):
 def test_stale_guideline_buttons(bot):
     bot.press("g:t:0")
     assert "Начните заново" in bot.session.texts()[-1]
+
+
+def test_feature_on_shows_menu_button(bot):
+    bot.say("/start")
+    assert "Создать профиль из методички" in bot.session.button_texts()
+
+
+def test_availability_network_error_keeps_button_uncached(bot):
+    bot.fake_api.network_down = True
+    bot.say("/start")
+    assert "Создать профиль из методички" in bot.session.button_texts()
+    bot.fake_api.network_down = False
+    bot.fake_api.extraction_enabled = False
+    bot.say("/start")
+    assert bot.session.button_texts() == MENU_NO_EXTRACT
