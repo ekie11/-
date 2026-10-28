@@ -22,13 +22,14 @@ dependencies = [
     "psycopg[binary]>=3.1",
     "httpx",
     "pypdf",
+    "aiogram>=3.13",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest", "ruff", "httpx", "fakeredis"]
 
 [tool.setuptools.packages.find]
-include = ["gostdoc_engine*", "gostdoc_api*"]
+include = ["gostdoc_engine*", "gostdoc_api*", "gostdoc_bot*"]
 
 [tool.setuptools.package-data]
 gostdoc_api = ["migrations/*.py", "migrations/versions/*.py", "migrations/*.mako"]
