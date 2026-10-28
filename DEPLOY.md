@@ -148,6 +148,8 @@ Telegram: виджету требуется публичный HTTPS-адрес 
 3. В `.env`: `SITE_URL=https://<поддомен>` и `COOKIE_SECURE=true`.
 4. У @BotFather: `/setdomain`, выберите бота, укажите этот поддомен.
 5. `docker compose up -d` и откройте сайт по адресу туннеля.
+   После `COOKIE_SECURE=true` вход по `http://localhost` или `http://IP` перестаёт
+   работать (браузер не сохраняет cookie без https) — заходите только по адресу туннеля.
 
 ### Запуск дома (Mac / Windows)
 
