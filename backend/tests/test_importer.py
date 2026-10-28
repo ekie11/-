@@ -54,16 +54,10 @@ def test_text_to_docx():
     doc = text_to_docx("ВВЕДЕНИЕ\r\n\r\n\r\nТекст\tработы.\n1 Обзор\nЕщё текст.")
     m = analyze(doc)
     assert [p.role for p in m.paragraphs] == [
-        Role.STRUCTURAL,
-        Role.BODY,
-        Role.HEADING_1,
-        Role.BODY,
+        Role.STRUCTURAL, Role.BODY, Role.HEADING_1, Role.BODY,
     ]
     assert [p.text for p in m.paragraphs] == [
-        "ВВЕДЕНИЕ",
-        "Текст работы.",
-        "1 Обзор",
-        "Ещё текст.",
+        "ВВЕДЕНИЕ", "Текст работы.", "1 Обзор", "Ещё текст.",
     ]
     assert doc.paragraphs[0].style.name == "Heading 1"
     assert doc.paragraphs[2].style.name == "Heading 1"

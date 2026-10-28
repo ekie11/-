@@ -71,8 +71,6 @@ def builtin_profile(profile_id: str) -> Profile:
 
 
 def list_builtin_profiles() -> list[Profile]:
-    profiles = [
-        load_profile(p) for p in sorted(PROFILES_DIR.glob("*.json")) if p.name != FIELDS_FILE
-    ]
+    profiles = [load_profile(p) for p in sorted(PROFILES_DIR.glob("*.json")) if p.name != FIELDS_FILE]
     # ГОСТ 7.32-2017 — профиль по умолчанию, всегда первый
     return sorted(profiles, key=lambda p: p.id != DEFAULT_PROFILE_ID)

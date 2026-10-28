@@ -7,14 +7,8 @@ from gostdoc_engine.rules.base import REGISTRY
 from tests.builders import build_docx
 
 P = builtin_profile("gost-7.32-2017")
-OK = [
-    ("p", "Текст."),
-    ("figure", "alt"),
-    ("figure_caption", "Рисунок 1 — Схема"),
-    ("table_caption", "Таблица 1 — Данные"),
-    ("table", "a|b;c|d"),
-    ("p", "Конец."),
-]
+OK = [("p", "Текст."), ("figure", "alt"), ("figure_caption", "Рисунок 1 — Схема"),
+      ("table_caption", "Таблица 1 — Данные"), ("table", "a|b;c|d"), ("p", "Конец.")]
 
 
 def check(key, doc):
@@ -100,7 +94,6 @@ def test_table_caption_indent_fixed():
     doc = build_docx(OK)
     doc.paragraphs[3].paragraph_format.first_line_indent = None
     from docx.shared import Cm
-
     doc.paragraphs[3].paragraph_format.first_line_indent = Cm(1.25)
     assert len(check("captions.table", doc)) == 1
     fix("captions.table", doc)

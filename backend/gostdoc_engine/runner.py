@@ -33,7 +33,9 @@ def run_check(model: DocModel, profile: Profile) -> RunResult:
 def run_fix(model: DocModel, profile: Profile) -> list[str]:
     """Применить исправления; вернуть ключи правил, чьё исправление упало."""
     failed: list[str] = []
-    ordered = sorted(profile.rules.items(), key=lambda kv: getattr(REGISTRY.get(kv[0]), "order", 0))
+    ordered = sorted(
+        profile.rules.items(), key=lambda kv: getattr(REGISTRY.get(kv[0]), "order", 0)
+    )
     for key, cfg in ordered:
         rule_cls = REGISTRY.get(key)
         if not cfg.enabled or rule_cls is None or not rule_cls.fixable:

@@ -11,18 +11,10 @@ from .base import Issue, Rule, register
 
 _SPACING_TOL = 0.05
 _INDENT_TOL_CM = 0.05
-_ALIGN_NAMES = {
-    "justify": "по ширине",
-    "left": "по левому краю",
-    "center": "по центру",
-    "right": "по правому краю",
-}
-_ALIGN_ENUM = {
-    "justify": WD_ALIGN_PARAGRAPH.JUSTIFY,
-    "left": WD_ALIGN_PARAGRAPH.LEFT,
-    "center": WD_ALIGN_PARAGRAPH.CENTER,
-    "right": WD_ALIGN_PARAGRAPH.RIGHT,
-}
+_ALIGN_NAMES = {"justify": "по ширине", "left": "по левому краю",
+                "center": "по центру", "right": "по правому краю"}
+_ALIGN_ENUM = {"justify": WD_ALIGN_PARAGRAPH.JUSTIFY, "left": WD_ALIGN_PARAGRAPH.LEFT,
+               "center": WD_ALIGN_PARAGRAPH.CENTER, "right": WD_ALIGN_PARAGRAPH.RIGHT}
 
 
 def _targets(model: DocModel, with_list: bool = True) -> list[DocParagraph]:
@@ -31,16 +23,8 @@ def _targets(model: DocModel, with_list: bool = True) -> list[DocParagraph]:
 
 
 def _issue(rule: Rule, cfg: RuleConfig, p: DocParagraph, message: str, exp: str, act: str) -> Issue:
-    return Issue(
-        rule=rule.key,
-        source=cfg.source,
-        severity=cfg.severity,
-        message=message,
-        expected=exp,
-        actual=act,
-        paragraph_index=p.index,
-        fixable=True,
-    )
+    return Issue(rule=rule.key, source=cfg.source, severity=cfg.severity, message=message,
+                 expected=exp, actual=act, paragraph_index=p.index, fixable=True)
 
 
 @register
@@ -55,9 +39,7 @@ class FontNameRule(Rule):
             act = units.effective_font_name(p.para)
             if act != exp:
                 shown = act or "не задан"
-                issues.append(
-                    _issue(self, cfg, p, f"Шрифт: ожидается {exp}, найден {shown}", exp, shown)
-                )
+                issues.append(_issue(self, cfg, p, f"Шрифт: ожидается {exp}, найден {shown}", exp, shown))
         return issues
 
     def fix(self, model, cfg):
@@ -87,9 +69,7 @@ class FontSizeRule(Rule):
             act = units.effective_font_size_pt(p.para)
             if act is not None and act < min_pt:
                 e, a = f"не менее {units.fmt_num(min_pt)} пт", f"{units.fmt_num(act)} пт"
-                issues.append(
-                    _issue(self, cfg, p, f"Размер шрифта: ожидается {e}, найдено {a}", e, a)
-                )
+                issues.append(_issue(self, cfg, p, f"Размер шрифта: ожидается {e}, найдено {a}", e, a))
         return issues
 
     def fix(self, model, cfg):
@@ -123,16 +103,9 @@ class LineSpacingRule(Rule):
             ok, act = self._ok(p.para, exp)
             if not ok:
                 a = units.fmt_num(act) if act is not None else "фиксированный"
-                issues.append(
-                    _issue(
-                        self,
-                        cfg,
-                        p,
-                        f"Межстрочный интервал: ожидается {units.fmt_num(exp)}, найдено {a}",
-                        units.fmt_num(exp),
-                        a,
-                    )
-                )
+                issues.append(_issue(self, cfg, p,
+                              f"Межстрочный интервал: ожидается {units.fmt_num(exp)}, найдено {a}",
+                              units.fmt_num(exp), a))
         return issues
 
     def fix(self, model, cfg):
@@ -156,9 +129,7 @@ class FirstLineIndentRule(Rule):
             act = units.effective_first_line_indent_cm(p.para)
             if abs(act - exp) > _INDENT_TOL_CM:
                 e, a = f"{units.fmt_num(exp)} см", f"{units.fmt_num(act)} см"
-                issues.append(
-                    _issue(self, cfg, p, f"Абзацный отступ: ожидается {e}, найдено {a}", e, a)
-                )
+                issues.append(_issue(self, cfg, p, f"Абзацный отступ: ожидается {e}, найдено {a}", e, a))
         return issues
 
     def fix(self, model, cfg):
@@ -180,9 +151,7 @@ class AlignmentRule(Rule):
             act = units.effective_alignment(p.para)
             if act != exp:
                 e, a = _ALIGN_NAMES[exp], _ALIGN_NAMES[act]
-                issues.append(
-                    _issue(self, cfg, p, f"Выравнивание: ожидается {e}, найдено {a}", e, a)
-                )
+                issues.append(_issue(self, cfg, p, f"Выравнивание: ожидается {e}, найдено {a}", e, a))
         return issues
 
     def fix(self, model, cfg):

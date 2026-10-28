@@ -39,25 +39,21 @@ def test_rejects_counted():
 
 
 def test_duplicate_keeps_first():
-    r = _val(
-        [
-            _f("page.margins", "left_mm", 30, "левое — «30 мм»"),
-            _f("page.margins", "left_mm", 10, "правое — 10 мм"),
-        ]
-    )
+    r = _val([
+        _f("page.margins", "left_mm", 30, "левое — «30 мм»"),
+        _f("page.margins", "left_mm", 10, "правое — 10 мм"),
+    ])
     assert [i["value"] for i in r["found"]] == [30.0]
     assert r["rejected_count"] == 1
 
 
 def test_quote_variants_found():
     # другие кавычки/тире, перенос строки, ё
-    r = _val(
-        [
-            _f("page.margins", "left_mm", 30, 'левое - "30 мм"'),
-            _f("page.margins", "right_mm", 10, "ПРАВОЕ — 10 мм"),
-            _f("body.font_name", "name", "Times New Roman", "ШРИФТОМ TIMES NEW ROMAN"),
-        ]
-    )
+    r = _val([
+        _f("page.margins", "left_mm", 30, 'левое - "30 мм"'),
+        _f("page.margins", "right_mm", 10, "ПРАВОЕ — 10 мм"),
+        _f("body.font_name", "name", "Times New Roman", "ШРИФТОМ TIMES NEW ROMAN"),
+    ])
     assert r["rejected_count"] == 0 and len(r["found"]) == 3
 
 
@@ -66,13 +62,11 @@ def test_short_quote_rejected():
 
 
 def test_coercion():
-    r = _val(
-        [
-            _f("body.font_size", "target_pt", "14 пт", "Кегль 14 пт"),
-            _f("body.first_line_indent", "cm", "1,25", "отступ абзаца 1,25 см"),
-            _f("body.line_spacing", "multiple", "полуторный", "интервал полуторный"),
-        ]
-    )
+    r = _val([
+        _f("body.font_size", "target_pt", "14 пт", "Кегль 14 пт"),
+        _f("body.first_line_indent", "cm", "1,25", "отступ абзаца 1,25 см"),
+        _f("body.line_spacing", "multiple", "полуторный", "интервал полуторный"),
+    ])
     assert [i["value"] for i in r["found"]] == [14.0, 1.25]
     assert r["rejected_count"] == 1
 
@@ -80,13 +74,11 @@ def test_coercion():
 def test_bool_and_text():
     t = "Заголовки жирным. Шрифт Arial."
     r = validate(
-        {
-            "found": [
-                _f("headings.section", "bold", "да", "Заголовки жирным"),
-                _f("headings.structural", "bold", "maybe", "Заголовки жирным"),
-                _f("body.font_name", "name", "x" * 201, "Шрифт Arial."),
-            ]
-        },
+        {"found": [
+            _f("headings.section", "bold", "да", "Заголовки жирным"),
+            _f("headings.structural", "bold", "maybe", "Заголовки жирным"),
+            _f("body.font_name", "name", "x" * 201, "Шрифт Arial."),
+        ]},
         t,
     )
     assert r["found"][0]["value"] is True
@@ -96,13 +88,10 @@ def test_bool_and_text():
 
 def test_unsupported():
     r = validate(
-        {
-            "found": [],
-            "unsupported": [
-                {"text": "Нумерация приложений", "quote": "отступ абзаца 1,25 см"},
-                {"text": "Выдумка", "quote": "этого нет в тексте вообще"},
-            ],
-        },
+        {"found": [], "unsupported": [
+            {"text": "Нумерация приложений", "quote": "отступ абзаца 1,25 см"},
+            {"text": "Выдумка", "quote": "этого нет в тексте вообще"},
+        ]},
         TEXT,
     )
     assert len(r["unsupported"]) == 1 and r["unsupported"][0]["page"] == 2
@@ -145,26 +134,15 @@ def test_unsupported_text_capped():
 
 def test_number_in_quote_comma_and_dot():
     t = "Отступ абзаца 1,25 см, кегль 14 пт, интервал 1.5."
-    r = validate(
-        {
-            "found": [
-                _f("body.first_line_indent", "cm", 1.25, "отступ абзаца 1,25 см"),
-                _f("body.font_size", "target_pt", 14.0, "кегль 14 пт"),
-                _f("body.line_spacing", "multiple", 1.5, "интервал 1,5 или 1.5 — интервал 1.5."),
-            ],
-            "unsupported": [],
-        },
-        t,
-    )
+    r = validate({"found": [
+        _f("body.first_line_indent", "cm", 1.25, "отступ абзаца 1,25 см"),
+        _f("body.font_size", "target_pt", 14.0, "кегль 14 пт"),
+        _f("body.line_spacing", "multiple", 1.5, "интервал 1,5 или 1.5 — интервал 1.5."),
+    ], "unsupported": []}, t)
     assert r["rejected_count"] == 1  # третья цитата не найдена в тексте
     t2 = "Отступ абзаца 1.25 см."
-    r = validate(
-        {
-            "found": [_f("body.first_line_indent", "cm", 1.25, "отступ абзаца 1.25 см")],
-            "unsupported": [],
-        },
-        t2,
-    )
+    r = validate({"found": [_f("body.first_line_indent", "cm", 1.25, "отступ абзаца 1.25 см")],
+                  "unsupported": []}, t2)
     assert r["rejected_count"] == 0 and len(r["found"]) == 1
 
 
@@ -176,32 +154,28 @@ def test_number_absent_from_quote_rejected():
 def test_number_not_matched_inside_bigger_number():
     t = "Размер 140 пт и 21,25 мм, 14,5 пт."
     for val, quote in ((14, "Размер 140 пт"), (1.25, "и 21,25 мм"), (14, "14,5 пт")):
-        r = validate(
-            {"found": [_f("body.font_size", "target_pt", val, quote)], "unsupported": []}, t
-        )
+        r = validate({"found": [_f("body.font_size", "target_pt", val, quote)],
+                      "unsupported": []}, t)
         assert r["found"] == [] and r["rejected_count"] == 1, quote
 
 
 def test_unsupported_dedup_against_found():
     t = "Нумерация страниц по центру вверху страницы. Шрифт 14 пт обязателен."
-    r = validate(
-        {
-            "found": [_f("body.font_size", "target_pt", 14, "Шрифт 14 пт обязателен")],
-            "unsupported": [
-                {"text": "дубль", "quote": "ШРИФТ 14 пт обязателен"},
-                {"text": "часть", "quote": "Шрифт 14 пт"},
-                {"text": "шире", "quote": "Шрифт 14 пт обязателен."},
-                {"text": "своё", "quote": "Нумерация страниц по центру вверху"},
-            ],
-        },
-        t,
-    )
+    r = validate({
+        "found": [_f("body.font_size", "target_pt", 14, "Шрифт 14 пт обязателен")],
+        "unsupported": [
+            {"text": "дубль", "quote": "ШРИФТ 14 пт обязателен"},
+            {"text": "часть", "quote": "Шрифт 14 пт"},
+            {"text": "шире", "quote": "Шрифт 14 пт обязателен."},
+            {"text": "своё", "quote": "Нумерация страниц по центру вверху"},
+        ],
+    }, t)
     assert [u["text"] for u in r["unsupported"]] == ["своё"]
 
 
 def test_prompt_rules():
     system, _ = build_messages("текст")
-    assert "явно" in system and 'либо в "found", либо в "unsupported"' in system
+    assert "явно" in system and "либо в \"found\", либо в \"unsupported\"" in system
 
 
 def test_zero_in_words_and_trailing_zeros():
@@ -215,7 +189,8 @@ def test_zero_in_words_and_trailing_zeros():
     r = validate({"found": ok, "unsupported": []}, t)
     assert r["rejected_count"] == 0 and len(r["found"]) == 4
     for val, q in ((14, "14,05 и 140"), (0, "Интервал 1,50")):
-        r = validate({"found": [_f("body.font_size", "target_pt", val, q)], "unsupported": []}, t)
+        r = validate({"found": [_f("body.font_size", "target_pt", val, q)],
+                      "unsupported": []}, t)
         assert r["found"] == []
 
 
@@ -234,13 +209,8 @@ def test_pattern_accepted_and_rejected():
     q = "Рисунок 1 — Название"
     ok = _sel("captions.figure", "pattern", "Рисунок {n} — {title}", q)
     assert len(ok["found"]) == 1
-    for bad in (
-        "Таблица X.Y − Название",
-        "Рисунок {number} – {name}",
-        "Рисунок {n}",
-        "Рисунок {title}",
-        "Рисунок {n} — {title} {x}",
-    ):
+    for bad in ("Таблица X.Y − Название", "Рисунок {number} – {name}",
+                "Рисунок {n}", "Рисунок {title}", "Рисунок {n} — {title} {x}"):
         r = _sel("captions.figure", "pattern", bad, q)
         assert r["found"] == [] and r["rejected_count"] == 1, bad
 

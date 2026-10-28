@@ -47,7 +47,9 @@ def get_settings() -> Settings:
         job_timeout_s=int(env.get("JOB_TIMEOUT_S", "120")),
         file_ttl_days=int(env.get("FILE_TTL_DAYS", "30")),
         llm_api_key=env.get("LLM_API_KEY", "").strip(),
-        llm_base_url=env.get("LLM_BASE_URL", "https://open.bigmodel.cn/api/paas/v4").strip(),
+        llm_base_url=env.get(
+            "LLM_BASE_URL", "https://open.bigmodel.cn/api/paas/v4"
+        ).strip(),
         llm_model=env.get("LLM_MODEL", "glm-4.5-flash").strip(),
         llm_timeout_s=int(env.get("LLM_TIMEOUT_S", "120")),
         extract_user_daily=int(env.get("EXTRACT_USER_DAILY", "5")),

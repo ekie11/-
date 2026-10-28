@@ -66,5 +66,7 @@ def check_text(text: str) -> str:
     if not text.strip():
         raise GuidelineError("Текст методички пуст")
     if len(text) > MAX_CHARS:
-        raise GuidelineError("Методичка слишком большая — до 150 000 символов (~60 страниц)", 413)
+        raise GuidelineError(
+            "Методичка слишком большая — до 150 000 символов (~60 страниц)", 413
+        )
     return text

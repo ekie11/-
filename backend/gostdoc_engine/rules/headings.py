@@ -11,18 +11,10 @@ from ..profile import RuleConfig
 from .base import Issue, Rule, register
 
 _INDENT_TOL_CM = 0.05
-_ALIGN_NAMES = {
-    "justify": "по ширине",
-    "left": "по левому краю",
-    "center": "по центру",
-    "right": "по правому краю",
-}
-_ALIGN_ENUM = {
-    "justify": WD_ALIGN_PARAGRAPH.JUSTIFY,
-    "left": WD_ALIGN_PARAGRAPH.LEFT,
-    "center": WD_ALIGN_PARAGRAPH.CENTER,
-    "right": WD_ALIGN_PARAGRAPH.RIGHT,
-}
+_ALIGN_NAMES = {"justify": "по ширине", "left": "по левому краю",
+                "center": "по центру", "right": "по правому краю"}
+_ALIGN_ENUM = {"justify": WD_ALIGN_PARAGRAPH.JUSTIFY, "left": WD_ALIGN_PARAGRAPH.LEFT,
+               "center": WD_ALIGN_PARAGRAPH.CENTER, "right": WD_ALIGN_PARAGRAPH.RIGHT}
 
 
 def _is_bold(par) -> bool:
@@ -65,14 +57,8 @@ class _HeadingRule(Rule):
         par = p.para
         out = []
         if v.get("bold") and not _is_bold(par):
-            out.append(
-                (
-                    "bold",
-                    "Заголовок: ожидается полужирное начертание, найдено обычное",
-                    "полужирное",
-                    "обычное",
-                )
-            )
+            out.append(("bold", "Заголовок: ожидается полужирное начертание, найдено обычное",
+                        "полужирное", "обычное"))
         align = v.get("align")
         if align:
             act = units.effective_alignment(par)
@@ -84,54 +70,25 @@ class _HeadingRule(Rule):
             act = units.effective_first_line_indent_cm(par)
             if abs(act - indent) > _INDENT_TOL_CM:
                 e, a = f"{units.fmt_num(indent)} см", f"{units.fmt_num(act)} см"
-                out.append(
-                    ("indent", f"Заголовок: ожидается абзацный отступ {e}, найдено {a}", e, a)
-                )
+                out.append(("indent", f"Заголовок: ожидается абзацный отступ {e}, найдено {a}", e, a))
         if v.get("trailing_period") is False and p.text.rstrip().endswith("."):
-            out.append(
-                (
-                    "period",
-                    "Заголовок: ожидается без точки в конце",
-                    "без точки в конце",
-                    "точка в конце",
-                )
-            )
+            out.append(("period", "Заголовок: ожидается без точки в конце",
+                        "без точки в конце", "точка в конце"))
         if v.get("uppercase") and p.text != p.text.upper():
-            out.append(
-                (
-                    "upper",
-                    "Заголовок: ожидается прописными буквами",
-                    "прописными буквами",
-                    "не прописными буквами",
-                )
-            )
+            out.append(("upper", "Заголовок: ожидается прописными буквами",
+                        "прописными буквами", "не прописными буквами"))
         if self._page_break_expected(p, cfg) and not _page_break_before(par):
-            out.append(
-                (
-                    "break",
-                    "Заголовок: ожидается начало с новой страницы",
-                    "с новой страницы",
-                    "без разрыва страницы",
-                )
-            )
+            out.append(("break", "Заголовок: ожидается начало с новой страницы",
+                        "с новой страницы", "без разрыва страницы"))
         return out
 
     def check(self, model: DocModel, cfg: RuleConfig) -> list[Issue]:
         issues = []
         for p in model.by_role(*self.roles):
             for _code, msg, exp, act in self._violations(p, cfg):
-                issues.append(
-                    Issue(
-                        rule=self.key,
-                        source=cfg.source,
-                        severity=cfg.severity,
-                        message=msg,
-                        expected=exp,
-                        actual=act,
-                        paragraph_index=p.index,
-                        fixable=True,
-                    )
-                )
+                issues.append(Issue(rule=self.key, source=cfg.source, severity=cfg.severity,
+                                    message=msg, expected=exp, actual=act,
+                                    paragraph_index=p.index, fixable=True))
         return issues
 
     def fix(self, model: DocModel, cfg: RuleConfig) -> None:

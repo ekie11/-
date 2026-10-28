@@ -92,7 +92,6 @@ def test_build_toc_field_links_and_bookmarks():
         assert anchor in marks
     ids = [b.get(qn("w:id")) for b in marks.values()]
     assert len(set(ids)) == len(ids)
-
     # закладка стоит в абзаце своего заголовка
     def text(el):
         return "".join(t.text or "" for t in el.iter(qn("w:t")))
@@ -114,11 +113,7 @@ def test_toc_levels_styles_and_placeholder():
     assert names == ["toc 1", "toc 1", "toc 2", "toc 1"]
     assert all(p.text.endswith("\t?") for p in entries)
     assert [p.text.split("\t")[0] for p in entries] == [
-        "ВВЕДЕНИЕ",
-        "1 Анализ",
-        "1.1 Подраздел",
-        "ЗАКЛЮЧЕНИЕ",
-    ]
+        "ВВЕДЕНИЕ", "1 Анализ", "1.1 Подраздел", "ЗАКЛЮЧЕНИЕ"]
     style = next(s for s in doc.styles if (s.name or "").lower() == "toc 1")
     assert style.element.xpath('.//w:tab[@w:val="right"][@w:leader="dot"]')
 
@@ -203,7 +198,6 @@ def test_set_page_numbers_and_update_fields():
 
 def test_toc_runs_after_headings_regardless_of_profile_order():
     from gostdoc_engine.profile import Profile
-
     data = P.model_dump()
     rules = data["rules"]
     reordered = {"toc": rules.pop("toc"), **rules}
@@ -232,12 +226,8 @@ def _format_words(blocks):
 
 
 def test_repro_a_pages_no_loss():
-    blocks = T + [
-        ("p", "1 Обзор ....... 4"),
-        ("h1", "1 Обзор"),
-        ("p", "Важный текст."),
-        ("p", "Ещё абзац."),
-    ]
+    blocks = T + [("p", "1 Обзор ....... 4"), ("h1", "1 Обзор"),
+                  ("p", "Важный текст."), ("p", "Ещё абзац.")]
     _, after, d = _format_words(blocks)
     assert "Важный текст." in after and "Ещё абзац." in after
     assert "1 Обзор" in after and len(_instr(d)) == 1 and len(_links(d)) == 1
@@ -245,14 +235,8 @@ def test_repro_a_pages_no_loss():
 
 
 def test_repro_b_entries_without_pages():
-    blocks = T + [
-        ("p", "Введение"),
-        ("p", "1 Обзор"),
-        ("structural", "ВВЕДЕНИЕ"),
-        ("p", "Текст."),
-        ("h1", "1 Обзор"),
-        ("p", "Тело."),
-    ]
+    blocks = T + [("p", "Введение"), ("p", "1 Обзор"), ("structural", "ВВЕДЕНИЕ"), ("p", "Текст."),
+                  ("h1", "1 Обзор"), ("p", "Тело.")]
     _, after, d = _format_words(blocks)
     assert "Тело." in after and "Текст." in after
     assert len(_instr(d)) == 1 and len(_links(d)) == 2 and len(_bookmarks(d)) == 2
@@ -260,14 +244,8 @@ def test_repro_b_entries_without_pages():
 
 
 def test_repro_c_struct_after():
-    blocks = T + [
-        ("p", "1 Обзор ....... 4"),
-        ("p", "Заключение ..... 9"),
-        ("h1", "1 Обзор"),
-        ("p", "Тело."),
-        ("structural", "ЗАКЛЮЧЕНИЕ"),
-        ("p", "Вывод."),
-    ]
+    blocks = T + [("p", "1 Обзор ....... 4"), ("p", "Заключение ..... 9"), ("h1", "1 Обзор"),
+                  ("p", "Тело."), ("structural", "ЗАКЛЮЧЕНИЕ"), ("p", "Вывод.")]
     _, after, d = _format_words(blocks)
     assert "Тело." in after and "1 Обзор" in after and "Вывод." in after
     assert "Заключение ..... 9" not in after
@@ -275,12 +253,8 @@ def test_repro_c_struct_after():
 
 
 def test_e_body_line_with_number_stays():
-    blocks = T + [
-        ("p", "Выручка за 2020 год составила  15"),
-        ("p", "Дальше текст."),
-        ("h1", "1 Обзор"),
-        ("p", "Тело."),
-    ]
+    blocks = T + [("p", "Выручка за 2020 год составила  15"), ("p", "Дальше текст."),
+                  ("h1", "1 Обзор"), ("p", "Тело.")]
     _, after, d = _format_words(blocks)
     assert "Выручка за 2020 год составила  15" in after and len(_links(d)) == 0
 
@@ -315,10 +289,8 @@ def test_check_silent_without_headings():
     assert not [i for i in res.report["issues"] if i["rule"] == "toc"]
 
 
-MISMATCH = (
-    "Содержание набрано вручную и не совпадает с заголовками — автоматическое "
-    "оглавление не вставлено, проверьте содержание вручную"
-)
+MISMATCH = ("Содержание набрано вручную и не совпадает с заголовками — автоматическое "
+            "оглавление не вставлено, проверьте содержание вручную")
 
 
 def _skipped(blocks):
@@ -332,43 +304,19 @@ def _skipped(blocks):
 
 def test_unmatched_leader_lines_skip_with_issue():
     # a: «Введение ... 3» не совпадает ни с каким заголовком
-    _skipped(
-        T
-        + [
-            ("p", "Введение ....... 3"),
-            ("p", "1 Обзор ....... 4"),
-            ("h1", "1 Обзор"),
-            ("p", "Важный текст."),
-        ]
-    )
+    _skipped(T + [("p", "Введение ....... 3"), ("p", "1 Обзор ....... 4"), ("h1", "1 Обзор"),
+                  ("p", "Важный текст.")])
     # c
-    _skipped(
-        T
-        + [
-            ("p", "Введение ....... 3"),
-            ("p", "1 Обзор ....... 4"),
-            ("h1", "1 Обзор"),
-            ("p", "Тело."),
-            ("structural", "ЗАКЛЮЧЕНИЕ"),
-            ("p", "Вывод."),
-        ]
-    )
+    _skipped(T + [("p", "Введение ....... 3"), ("p", "1 Обзор ....... 4"), ("h1", "1 Обзор"),
+                  ("p", "Тело."), ("structural", "ЗАКЛЮЧЕНИЕ"), ("p", "Вывод.")])
 
 
 def test_original_b_no_pages_skipped():
-    _skipped(
-        T
-        + [
-            ("p", "Введение"),
-            ("p", "1 Обзор"),
-            ("h1", "1 Обзор"),
-            ("p", "Важный текст тела раздела."),
-        ]
-    )
+    _skipped(T + [("p", "Введение"), ("p", "1 Обзор"), ("h1", "1 Обзор"),
+                  ("p", "Важный текст тела раздела.")])
 
 
 def test_leader_line_is_never_heading():
     from gostdoc_engine.analyze import classify_text
-
     assert classify_text("1 Обзор ....... 4", True) is None
     assert classify_text("1 Обзор\t4", True) is None

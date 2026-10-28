@@ -66,9 +66,9 @@ def main(argv: list[str] | None = None) -> None:
     serve.add_argument("--port", type=int, default=8000)
     serve.set_defaults(func=_serve)
     sub.add_parser("worker", help="запустить RQ-воркер").set_defaults(func=_worker)
-    sub.add_parser(
-        "extract-worker", help="запустить RQ-воркер извлечений (один процесс)"
-    ).set_defaults(func=_extract_worker)
+    sub.add_parser("extract-worker", help="запустить RQ-воркер извлечений (один процесс)").set_defaults(
+        func=_extract_worker
+    )
     sub.add_parser("cleanup", help="удалить просроченные файлы и сессии").set_defaults(
         func=_cleanup
     )

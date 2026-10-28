@@ -19,13 +19,8 @@ def fix(key, doc):
     REGISTRY[key]().fix(analyze(doc), P.rules[key])
 
 
-KEYS = [
-    "body.font_name",
-    "body.font_size",
-    "body.line_spacing",
-    "body.first_line_indent",
-    "body.alignment",
-]
+KEYS = ["body.font_name", "body.font_size", "body.line_spacing",
+        "body.first_line_indent", "body.alignment"]
 
 
 @pytest.mark.parametrize("key", KEYS)
@@ -65,7 +60,6 @@ def test_size_fix_leaves_ok_paragraphs():
     doc.styles["Normal"].font.size = None
     # первый абзац: 14 в run; второй: наследует 8 от стиля
     from docx.shared import Pt
-
     doc.styles["Normal"].font.size = Pt(8)
     assert [i.paragraph_index for i in check("body.font_size", doc)] == [1]
     fix("body.font_size", doc)
@@ -90,7 +84,6 @@ def test_run_level_font_detected_and_fixed():
 
 def test_dominant_font_by_chars():
     from gostdoc_engine.units import effective_font_name
-
     doc = build_docx([("p", "x")])
     p = doc.paragraphs[0]
     p.runs[0].text = "ab"
@@ -104,12 +97,8 @@ def test_table_cells_and_empty_paragraphs_ignored():
     # ячейки: отступ 0, интервал 1.0, выравнивание left — не должно быть замечаний
     for key in KEYS:
         assert {i.paragraph_index for i in check(key, doc)} == set()
-    doc2 = build_docx(
-        [("p", "Текст."), ("empty", ""), ("table", "a|b")],
-        indent_cm=0,
-        line_spacing=1.0,
-        align="left",
-    )
+    doc2 = build_docx([("p", "Текст."), ("empty", ""), ("table", "a|b")],
+                      indent_cm=0, line_spacing=1.0, align="left")
     idx = {i.paragraph_index for k in KEYS for i in check(k, doc2)}
     assert idx == {0}
     fix("body.first_line_indent", doc2)
@@ -132,7 +121,6 @@ def test_list_item_skips_indent():
 def test_style_level_properties_resolved():
     from docx.enum.text import WD_ALIGN_PARAGRAPH
     from docx.shared import Cm
-
     doc = build_docx([("p", "Текст.")])
     p = doc.paragraphs[0]
     pPr = p._p.pPr
@@ -151,7 +139,6 @@ def test_fix_does_not_modify_styles_or_table_cells():
     from docx.shared import Pt
 
     from gostdoc_engine.units import effective_font_name, effective_font_size_pt
-
     doc = build_docx([("p", "Текст."), ("table", "a|b")])
     normal = doc.styles["Normal"]
     normal.font.name, normal.font.size = "Arial", Pt(8)
@@ -176,7 +163,6 @@ def test_hyperlink_run_font_checked_and_fixed():
     from docx.oxml import OxmlElement
     from docx.shared import Pt
     from docx.text.run import Run
-
     doc = build_docx([("p", "x")])
     p = doc.paragraphs[0]
     p._p.remove(p.runs[0]._r)

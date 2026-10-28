@@ -19,7 +19,9 @@ def remove_service_comments(doc) -> int:
         return 0
     root = part.element
     ids = {
-        c.get(qn("w:id")) for c in root.findall(qn("w:comment")) if c.get(qn("w:author")) == AUTHOR
+        c.get(qn("w:id"))
+        for c in root.findall(qn("w:comment"))
+        if c.get(qn("w:author")) == AUTHOR
     }
     if not ids:
         return 0

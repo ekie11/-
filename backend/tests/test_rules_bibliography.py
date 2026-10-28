@@ -24,30 +24,18 @@ def test_no_section_with_ref():
 
 
 def test_clean():
-    assert (
-        check(
-            [
-                ("p", "Так [1], затем [2]."),
-                ("structural", "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ"),
-                ("source", f"1. {BOOK}"),
-                ("source", f"2. {BOOK}"),
-            ]
-        )
-        == []
-    )
+    assert check([("p", "Так [1], затем [2]."),
+                  ("structural", "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ"),
+                  ("source", f"1. {BOOK}"), ("source", f"2. {BOOK}")]) == []
 
 
 def test_numbering_and_entry_problems():
-    issues = check(
-        [
-            ("p", "Так [1] [2] [3] [4] [5]."),
-            ("structural", "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ"),
-            ("source", f"1. {BOOK}"),
-            ("source", "2. Иванов И. Статья // Журнал. — 2020."),
-            ("source", "4. Книга без года. — М. : Наука."),
-            ("source", "5. Сайт. — URL: http://x.ru, 2020. [Электронный ресурс]"),
-        ]
-    )
+    issues = check([("p", "Так [1] [2] [3] [4] [5]."),
+                    ("structural", "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ"),
+                    ("source", f"1. {BOOK}"),
+                    ("source", "2. Иванов И. Статья // Журнал. — 2020."),
+                    ("source", "4. Книга без года. — М. : Наука."),
+                    ("source", "5. Сайт. — URL: http://x.ru, 2020. [Электронный ресурс]")])
     msgs = [i.message for i in issues]
     assert "Источник 4: нарушена нумерация, ожидался номер 3" in msgs
     assert "Источник 4: нет года издания" in msgs
@@ -58,12 +46,8 @@ def test_numbering_and_entry_problems():
     assert all(not i.fixable for i in issues)
 
 
-SEC = [
-    ("structural", "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ"),
-    ("source", f"1. {BOOK}"),
-    ("source", f"2. {BOOK}"),
-    ("source", f"3. {BOOK}"),
-]
+SEC = [("structural", "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ"),
+       ("source", f"1. {BOOK}"), ("source", f"2. {BOOK}"), ("source", f"3. {BOOK}")]
 
 
 def msgs(blocks, pid="gost-7.32-2017"):
@@ -72,11 +56,10 @@ def msgs(blocks, pid="gost-7.32-2017"):
 
 def test_find_citations():
     from gostdoc_engine.bibliography import find_citations
-
-    m = analyze(
-        build_docx([("p", "См. [1], [2, с. 5], [1; 3], [1–3] и [2-3]."), ("p", "Нет."), *SEC])
-    )
-    assert [(i, n) for i, n in find_citations(m)] == [(0, [1, 2, 1, 3, 1, 2, 3, 2, 3])]
+    m = analyze(build_docx([
+        ("p", "См. [1], [2, с. 5], [1; 3], [1–3] и [2-3]."), ("p", "Нет."), *SEC]))
+    assert [(i, n) for i, n in find_citations(m)] == [
+        (0, [1, 2, 1, 3, 1, 2, 3, 2, 3])]
     big = analyze(build_docx([("p", "[1–500]"), *SEC]))
     assert len(find_citations(big)[0][1]) <= 50
 
@@ -93,15 +76,9 @@ def test_uncited_source_is_recommendation():
 
 
 def test_citation_in_toc_or_section_ignored():
-    r = msgs(
-        [
-            ("p", "[1] [2] [3]"),
-            *SEC[:1],
-            ("source", f"1. {BOOK} См. [9]."),
-            ("source", f"2. {BOOK}"),
-            ("source", f"3. {BOOK}"),
-        ]
-    )
+    r = msgs([("p", "[1] [2] [3]"), *SEC[:1],
+              ("source", f"1. {BOOK} См. [9]."), ("source", f"2. {BOOK}"),
+              ("source", f"3. {BOOK}")])
     assert not any("[9]" in m for m, _ in r)
 
 
@@ -116,14 +93,9 @@ def test_fix_typography():
     import docx
 
     from gostdoc_engine.rules.base import REGISTRY as R
-
-    d = build_docx(
-        SEC[:1]
-        + [
-            ("source", "1. Москва-Наука, 2020. - М. :Наука,  2020. – 10 с. Текст:электронный"),
-            ("source", "2. Статья//Журнал . - 2020. С. 10-15 и 10 - 15."),
-        ]
-    )
+    d = build_docx(SEC[:1] + [
+        ("source", "1. Москва-Наука, 2020. - М. :Наука,  2020. – 10 с. Текст:электронный"),
+        ("source", "2. Статья//Журнал . - 2020. С. 10-15 и 10 - 15.")])
     model = analyze(d)
     cfg = builtin_profile("gost-7.32-2017").rules[KEY]
     assert R[KEY].fixable
@@ -142,11 +114,8 @@ def test_fix_typography():
 
 def test_fix_leaves_urls_and_emails():
     from gostdoc_engine.rules.base import REGISTRY as R
-
-    src = [
-        "1. URL: http://x.ru/a//b (дата обращения: 01.01.2020)",
-        "2. e-mail:ivan@x.ru и mailto:a@b.ru",
-    ]
+    src = ["1. URL: http://x.ru/a//b (дата обращения: 01.01.2020)",
+           "2. e-mail:ivan@x.ru и mailto:a@b.ru"]
     d = build_docx(SEC[:1] + [("source", t) for t in src] + [("source", "3. Текст:электронный")])
     R[KEY]().fix(analyze(d), builtin_profile("gost-7.32-2017").rules[KEY])
     assert [p.text for p in d.paragraphs[1:]] == src[:2] + ["3. Текст : электронный"]
@@ -154,52 +123,34 @@ def test_fix_leaves_urls_and_emails():
 
 def test_citation_number_limits_and_roles():
     from gostdoc_engine.bibliography import find_citations
-
-    m = analyze(
-        build_docx(
-            [("p", "В [2019] и [0] году."), ("table_caption", "Таблица 1 - Данные [1]"), *SEC]
-        )
-    )
+    m = analyze(build_docx([("p", "В [2019] и [0] году."),
+                            ("table_caption", "Таблица 1 - Данные [1]"), *SEC]))
     assert find_citations(m) == []
 
 
 def test_unnumbered_list():
-    issues = check(
-        [
-            ("p", "См. [1] и [2]."),
-            ("structural", "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ"),
-            ("source", "Иванов И. И. Экономика. — М. : Наука, 2019. — 100 с."),
-            ("source", "Петров П. П. Статья // Вестник. — 2020. — № 2."),
-        ]
-    )
+    issues = check([("p", "См. [1] и [2]."),
+                    ("structural", "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ"),
+                    ("source", "Иванов И. И. Экономика. — М. : Наука, 2019. — 100 с."),
+                    ("source", "Петров П. П. Статья // Вестник. — 2020. — № 2.")])
     msgs = [i.message for i in issues]
     assert not any("несуществующий" in m for m in msgs)
     assert "Источники в списке не пронумерованы" in msgs
 
 
 def test_unnumbered_entries_checked():
-    msgs = [
-        i.message
-        for i in check(
-            [
-                ("p", "См. [1] и [2]."),
-                ("structural", "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ"),
-                ("source", "Иванов И. И. Экономика. — М. : Наука, 2019."),
-                ("source", "Петров П. П. Статья без года."),
-            ]
-        )
-    ]
+    msgs = [i.message for i in check([
+        ("p", "См. [1] и [2]."),
+        ("structural", "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ"),
+        ("source", "Иванов И. И. Экономика. — М. : Наука, 2019."),
+        ("source", "Петров П. П. Статья без года.")])]
     assert any(m.startswith("Источник 2: нет года") for m in msgs)
 
 
 def test_hyphen_separator():
-    issues = check(
-        [
-            ("p", "См. [1]."),
-            ("structural", "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ"),
-            ("source", "1. Иванов И. И. Экономика. - Москва : Наука, 2019."),
-        ]
-    )
+    issues = check([("p", "См. [1]."),
+                    ("structural", "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ"),
+                    ("source", "1. Иванов И. И. Экономика. - Москва : Наука, 2019.")])
     msgs = [i.message for i in issues]
     assert not any("нет выходных данных" in m for m in msgs)
     assert "Источник 1: вместо дефиса между элементами нужно тире « — »" in msgs
