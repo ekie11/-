@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 from aiogram import Bot, F, Router
 from aiogram.exceptions import TelegramAPIError
 from aiogram.filters import StateFilter
@@ -25,6 +27,7 @@ from .common import (
 from .common import fail as _fail
 from .common import reply as _reply
 
+log = logging.getLogger("gostdoc_bot")
 PAGE = 8
 DEFAULT_BASE = "gost-7.32-2017"
 QUOTE_CHARS = 150
@@ -161,6 +164,7 @@ async def _show_result(
 
 def build_router():
     router = Router(name="guideline")
+    inflight: set[tuple[int, int]] = set()
 
     @router.callback_query(F.data == "menu:extract")
     async def begin(cb: CallbackQuery, state: FSMContext) -> None:
@@ -211,7 +215,33 @@ def build_router():
         avail: Availability,
         poll_interval: float = 2.0,
     ) -> None:
-        await cb.answer()
+        key = (cb.from_user.id, cb.message.chat.id)
+        if key in inflight:  # синхронная проверка до любого await: гонка двойного нажатия
+            return await cb.answer()
+        inflight.add(key)
+        status: list[Message] = []
+        try:
+            await state.set_state(GuidelineFlow.creating)
+            await cb.answer()
+            await _create(cb, state, bot, api, avail, poll_interval, status)
+        except Exception as exc:  # noqa: BLE001  непредвиденное: ответ пользователю обязателен
+            log.error("guideline flow failed: %s", type(exc).__name__)
+            await state.clear()
+            for m in status:
+                await drop(m)
+            await _reply(cb.message, UNAVAILABLE)
+        finally:
+            inflight.discard(key)
+
+    async def _create(
+        cb: CallbackQuery,
+        state: FSMContext,
+        bot: Bot,
+        api: ApiClient,
+        avail: Availability,
+        poll_interval: float,
+        shown: list[Message],
+    ) -> None:
         data = await state.get_data()
         ids = data.get("base_ids", [])
         idx = int(cb.data.split(":")[1])
@@ -221,10 +251,10 @@ def build_router():
                 texts.RESTART, reply_markup=await main_menu(avail, cb.from_user)
             )
         uid, name = who(cb.from_user)
-        await state.set_state(GuidelineFlow.creating)  # повторное нажатие игнорируется
         status = None
         try:
             status = await cb.message.answer(texts.QUEUED)
+            shown.append(status)
             file = text = None
             if data.get("file_id"):
                 file = await download_file(bot, data["file_id"], data.get("file_name") or "in.docx")

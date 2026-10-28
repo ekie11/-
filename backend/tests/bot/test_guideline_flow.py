@@ -193,3 +193,48 @@ def test_double_tap_creates_one_extraction(bot):
     bot.press(cb)
     posts = [r for r in bot.fake_api.requests if r.url.path == "/extractions" and r.method == "POST"]
     assert len(posts) == 1
+
+
+def test_concurrent_double_tap_creates_one_extraction(bot):
+    import asyncio
+    from datetime import UTC, datetime
+
+    from aiogram.types import CallbackQuery, Message, Update
+
+    from tests.bot.conftest import CHAT, USER
+
+    to_base(bot)
+    data = bot.session.callback_for("ГОСТ 7.32-2017")
+
+    def update(i):
+        msg = Message(message_id=1, date=datetime.now(UTC), chat=CHAT, text="старое")
+        cq = CallbackQuery(
+            id=str(i), from_user=USER, chat_instance="c", message=msg, data=data
+        )
+        return Update(update_id=900 + i, callback_query=cq)
+
+    async def both():
+        await asyncio.gather(
+            bot.dp.feed_update(bot.bot, update(1)), bot.dp.feed_update(bot.bot, update(2))
+        )
+
+    asyncio.run(both())
+    posts = [r for r in bot.fake_api.requests if r.url.path == "/extractions" and r.method == "POST"]
+    assert len(posts) == 1
+
+
+def test_unexpected_error_resets_state_and_answers(bot):
+    to_base(bot)
+    original = bot.fake_api.handler
+
+    def boom(request):
+        if request.url.path == "/extractions/e1":
+            raise RuntimeError("boom")
+        return original(request)
+
+    bot.dp.workflow_data["api"]._http._transport = __import__("httpx").MockTransport(boom)
+    bot.press_button("ГОСТ 7.32-2017")
+    assert "Сервис временно недоступен" in bot.session.texts()[-1]
+    assert len(bot.session.of(DeleteMessage)) == 1
+    bot.press("gb:0")  # состояние сброшено
+    assert "Начните заново" in bot.session.texts()[-1]
