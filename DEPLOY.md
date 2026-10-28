@@ -122,10 +122,52 @@ docker run --rm -v gostdoc_storage:/s -v "$PWD":/b alpine tar czf /b/storage-$(d
 6. Миграции применяются как обычно (`docker compose up -d --build`, миграция 0003).
 7. Пока `LLM_API_KEY` пуст, функция скрыта. После правки `.env`: `docker compose up -d`.
 
+## Telegram-бот и вход через Telegram
+
+Бот принимает документ в чате и возвращает оформленный DOCX; на сайте появляется
+кнопка «Войти через Telegram». Пока `TELEGRAM_BOT_TOKEN` пуст, бот не запускается
+(контейнер `bot` пишет об этом в лог и завершается), а вход через Telegram скрыт.
+
+1. В Telegram откройте @BotFather, отправьте `/newbot`, задайте имя и username бота.
+2. В `.env` впишите `TELEGRAM_BOT_TOKEN=<токен от BotFather>` и
+   `TELEGRAM_BOT_USERNAME=<username без @>`.
+3. Общий секрет бота и API: `openssl rand -hex 32`, результат в `BOT_API_SECRET=`.
+4. `docker compose up -d --build`, затем `docker compose logs -f bot`.
+
+**Бот работает без туннеля и домена**: он сам опрашивает Telegram (long polling) и
+ходит в API внутри сети compose. Туннель нужен только для входа на сайт через
+Telegram: виджету требуется публичный HTTPS-адрес с доменом.
+
+### Вход на сайте через туннель Tuna (если своего домена нет)
+
+1. Установите Tuna CLI и войдите по токену из личного кабинета tuna.am
+   (команды установки и входа смотрите в документации Tuna).
+2. Зарезервируйте постоянный поддомен и пробросьте порт 80 (Caddy):
+   `tuna http 80 --subdomain=<имя>`. Точные флаги проверьте в документации Tuna,
+   они могут отличаться по версии.
+3. В `.env`: `SITE_URL=https://<поддомен>` и `COOKIE_SECURE=true`.
+4. У @BotFather: `/setdomain`, выберите бота, укажите этот поддомен.
+5. `docker compose up -d` и откройте сайт по адресу туннеля.
+
+### Запуск дома (Mac / Windows)
+
+Поставьте Docker Desktop, выполните те же шаги и отключите сон компьютера, иначе
+бот и туннель остановятся. Tuna держите запущенным постоянно.
+
+## Сервер с 2 ГБ памяти: своп
+
+LibreOffice при конвертации может не уложиться в память. Добавьте своп:
+
+```bash
+fallocate -l 4G /swapfile && chmod 600 /swapfile
+mkswap /swapfile && swapon /swapfile
+echo '/swapfile none swap sw 0 0' >> /etc/fstab
+```
+
 ## Логи и диагностика
 
 ```bash
-docker compose logs -f api worker extract-worker
+docker compose logs -f api worker extract-worker bot
 docker compose ps
 docker compose restart worker
 ```
