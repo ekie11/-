@@ -10,5 +10,6 @@ class FormatFlow(StatesGroup):
 class GuidelineFlow(StatesGroup):
     waiting_input = State()
     choosing_base = State()
+    creating = State()
     reviewing = State()
     naming = State()

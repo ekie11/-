@@ -13,6 +13,7 @@ from ..api import UNAVAILABLE, ApiClient, ApiError
 from ..states import GuidelineFlow
 from .common import (
     MAX_FILE,
+    MESSAGE_LIMIT,
     Availability,
     download_file,
     drop,
@@ -84,15 +85,23 @@ def _render(data: dict, page: int) -> tuple[str, object]:
     body = "\n".join(f"{i + 1}. {labels[i]}{details[i]}" for i in idxs)
     head = texts.FOUND_HEAD.format(n=len(labels), page=page + 1, pages=pages)
     markup = keyboards.found([(i, labels[i]) for i in idxs], accepted, page, pages)
-    return f"{head}\n\n{body}", markup
+    return f"{head}\n\n{body}"[:MESSAGE_LIMIT], markup
 
 
-def _unsupported_text(items: list[dict]) -> str:
+def _unsupported_chunks(items: list[dict]) -> list[str]:
+    """Блок «Не поддерживается», разбитый так, чтобы каждое сообщение влезало в лимит."""
     lines = [texts.UNSUPPORTED_HEAD]
     for item in items[:UNSUPPORTED_SHOWN]:
         text = str(item.get("text", ""))[:UNSUPPORTED_CHARS]
-        lines.append(f"• {text}{_detail(item)}")
-    return "\n".join(lines)
+        lines.append(f"• {text}{_detail(item)}"[:MESSAGE_LIMIT])
+    chunks, cur = [], ""
+    for line in lines:
+        if cur and len(cur) + len(line) + 1 > MESSAGE_LIMIT:
+            chunks.append(cur)
+            cur = line
+        else:
+            cur = f"{cur}\n{line}" if cur else line
+    return [*chunks, cur]
 
 
 async def _ask_base(message: Message, user, state: FSMContext, api: ApiClient) -> None:
@@ -127,10 +136,9 @@ async def _show_result(
     unsupported = result.get("unsupported") or []
     if not found:
         await state.clear()
-        out = texts.NOTHING_FOUND
-        if unsupported:
-            out += "\n\n" + _unsupported_text(unsupported)
-        return await message.answer(out, reply_markup=keyboards.to_menu())
+        for chunk in _unsupported_chunks(unsupported) if unsupported else []:
+            await message.answer(chunk)
+        return await message.answer(texts.NOTHING_FOUND, reply_markup=keyboards.to_menu())
     try:
         meta = await api.profile_fields(uid, name)
     except ApiError:
@@ -145,7 +153,8 @@ async def _show_result(
     await state.set_data({**(await state.get_data()), **data})
     await state.set_state(GuidelineFlow.reviewing)
     if unsupported:
-        await message.answer(_unsupported_text(unsupported))
+        for chunk in _unsupported_chunks(unsupported):
+            await message.answer(chunk)
     text, markup = _render(data, 0)
     await message.answer(text, reply_markup=markup)
 
@@ -212,6 +221,7 @@ def build_router():
                 texts.RESTART, reply_markup=await main_menu(avail, cb.from_user)
             )
         uid, name = who(cb.from_user)
+        await state.set_state(GuidelineFlow.creating)  # повторное нажатие игнорируется
         status = None
         try:
             status = await cb.message.answer(texts.QUEUED)
@@ -222,9 +232,11 @@ def build_router():
                 text = "\n".join(data.get("parts", []))
             ext = await api.create_extraction(uid, name, file, text, ids[idx])
         except ApiError as exc:  # состояние сохраняем: можно выбрать основу ещё раз
+            await state.set_state(GuidelineFlow.choosing_base)
             await drop(status)
             return await _reply(cb.message, exc.detail)
         except TelegramAPIError as exc:
+            await state.set_state(GuidelineFlow.choosing_base)
             await drop(status)
             return await _reply(cb.message, texts.FILE_TOO_BIG if too_big(exc) else UNAVAILABLE)
         await state.update_data(file_id=None, parts=[])
@@ -233,12 +245,25 @@ def build_router():
                 status, lambda: api.extraction(uid, name, ext["id"]), LABELS, poll_interval
             )
         except ApiError as exc:
+            await state.clear()
+            await drop(status)
             return await _reply(cb.message, exc.detail)
+        await drop(status)
         if final is None:
+            await state.clear()
             return await _reply(cb.message, texts.JOB_TIMEOUT)
         if final["status"] != "done":
+            await state.clear()
             return await _reply(cb.message, final.get("error") or texts.JOB_FAILED)
-        await _show_result(cb.message, api, uid, name, state, final)
+        try:
+            await _show_result(cb.message, api, uid, name, state, final)
+        except TelegramAPIError:
+            await state.clear()
+            await _reply(cb.message, UNAVAILABLE)
+
+    @router.callback_query(StateFilter(GuidelineFlow.creating))
+    async def busy(cb: CallbackQuery) -> None:
+        await cb.answer()
 
     async def _edit(cb: CallbackQuery, data: dict, page: int) -> None:
         text, markup = _render(data, page)
@@ -306,9 +331,12 @@ def build_router():
         except ApiError as exc:
             return await _reply(message, exc.detail)
         await state.clear()
-        await message.answer(
-            texts.PROFILE_CREATED.format(name=title),
-            reply_markup=keyboards.created(created["profile_id"], site_url),
-        )
+        try:
+            await message.answer(
+                texts.PROFILE_CREATED.format(name=title)[:MESSAGE_LIMIT],
+                reply_markup=keyboards.created(created["profile_id"], site_url),
+            )
+        except TelegramAPIError:
+            await _reply(message, UNAVAILABLE)
 
     return router

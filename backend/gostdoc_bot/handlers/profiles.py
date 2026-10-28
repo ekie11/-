@@ -78,7 +78,7 @@ def build_router():
             data = await api.profile_json(uid, name, pid)
             await cb.message.answer_document(BufferedInputFile(data, f"{pid}.json"))
         except ApiError as exc:
-            await reply(cb.message, exc.detail)
+            await reply(cb.message, exc.detail or texts.PROFILE_JSON_FAILED)
         except TelegramAPIError:
             await reply(cb.message, UNAVAILABLE)
 

@@ -144,3 +144,52 @@ def test_availability_network_error_keeps_button_uncached(bot):
     bot.fake_api.extraction_enabled = False
     bot.say("/start")
     assert bot.session.button_texts() == MENU_NO_EXTRACT
+
+
+def test_long_unsupported_split_and_all_messages_fit(bot):
+    bot.fake_api.unsupported = [
+        {"text": "я" * 400, "quote": "ц" * 400, "page": 1} for _ in range(10)
+    ]
+    to_review(bot)
+    texts = bot.session.texts()
+    assert all(len(t) <= 4096 for t in texts)
+    assert sum("•" in t for t in texts) >= 2
+    assert "Найдено требований" in texts[-1]
+
+
+def test_telegram_failure_on_result_gives_unavailable(bot):
+    from aiogram.exceptions import TelegramNetworkError
+    from aiogram.methods import SendMessage
+
+    to_base(bot)
+    bot.fake_api.extraction_statuses = ["done"]
+    real = bot.session.make_request
+
+    async def flaky(b, method, timeout=None):
+        if isinstance(method, SendMessage) and "Найдено требований" in method.text:
+            raise TelegramNetworkError(method, "net")
+        return await real(b, method, timeout)
+
+    bot.session.make_request = flaky
+    bot.press_button("ГОСТ 7.32-2017")
+    assert "Сервис временно недоступен" in bot.session.texts()[-1]
+
+
+def test_status_removed_after_success_and_failure(bot):
+    to_review(bot)
+    assert len(bot.session.of(DeleteMessage)) == 1
+
+
+def test_status_removed_after_failed_extraction(bot):
+    bot.fake_api.extraction_statuses = ["failed"]
+    to_review(bot)
+    assert len(bot.session.of(DeleteMessage)) == 1
+
+
+def test_double_tap_creates_one_extraction(bot):
+    to_base(bot)
+    cb = bot.session.callback_for("ГОСТ 7.32-2017")
+    bot.press(cb)
+    bot.press(cb)
+    posts = [r for r in bot.fake_api.requests if r.url.path == "/extractions" and r.method == "POST"]
+    assert len(posts) == 1

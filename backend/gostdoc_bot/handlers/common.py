@@ -14,6 +14,7 @@ from aiogram.types import InlineKeyboardMarkup, Message
 from .. import keyboards
 from ..api import ApiClient, ApiError
 
+MESSAGE_LIMIT = 4000
 MAX_FILE = 20 * 1024 * 1024
 MAX_WAIT_S = 300
 POLL_RETRIES = 3
@@ -36,7 +37,7 @@ async def reply(target: Message, text: str) -> None:
 async def fail(target: Message, exc: ApiError, state: FSMContext | None = None) -> None:
     if state is not None:
         await state.clear()
-    await target.answer(exc.detail, reply_markup=keyboards.to_menu())
+    await reply(target, exc.detail)
 
 
 async def drop(message: Message | None) -> None:
