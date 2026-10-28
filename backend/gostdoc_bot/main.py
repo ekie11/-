@@ -11,7 +11,9 @@ from aiogram.fsm.storage.base import BaseStorage
 from .api import ApiClient
 from .config import load_config
 from .handlers import format as format_handlers
-from .handlers import menu
+from .handlers import guideline, history, menu, profiles
+from .handlers import help as help_handlers
+from .handlers.common import Availability
 
 log = logging.getLogger("gostdoc_bot")
 
@@ -22,10 +24,20 @@ def build_dispatcher(
     poll_interval: float = 2.0,
     site_url: str = "",
 ) -> Dispatcher:
-    dp = Dispatcher(storage=storage, api=api, poll_interval=poll_interval, site_url=site_url)
+    dp = Dispatcher(
+        storage=storage,
+        api=api,
+        poll_interval=poll_interval,
+        site_url=site_url,
+        avail=Availability(api),
+    )
     main_router, fallback = menu.build_routers()
     dp.include_router(main_router)
     dp.include_router(format_handlers.build_router())
+    dp.include_router(profiles.build_router())
+    dp.include_router(history.build_router())
+    dp.include_router(guideline.build_router())
+    dp.include_router(help_handlers.build_router())
     dp.include_router(fallback)
     return dp
 

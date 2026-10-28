@@ -31,17 +31,28 @@ class PageSizeRule(Rule):
             sw, sh = _mm(s.page_width), _mm(s.page_height)
             is_portrait = sw <= sh
             short, long_ = sorted((sw, sh))
-            ok = (abs(short - w) <= _SIZE_TOL_MM and abs(long_ - h) <= _SIZE_TOL_MM
-                  and is_portrait == portrait)
+            ok = (
+                abs(short - w) <= _SIZE_TOL_MM
+                and abs(long_ - h) <= _SIZE_TOL_MM
+                and is_portrait == portrait
+            )
             if not ok:
                 orient = "книжная" if portrait else "альбомная"
                 actual_orient = "книжная" if is_portrait else "альбомная"
                 exp = f"{fmt}, {orient}"
                 act = f"{fmt_num(sw, 1)}×{fmt_num(sh, 1)} мм, {actual_orient}"
-                issues.append(Issue(
-                    rule=self.key, source=cfg.source, severity=cfg.severity,
-                    message=f"Формат страницы (раздел {i}): ожидается {exp}, найдено {act}",
-                    expected=exp, actual=act, paragraph_index=None, fixable=True))
+                issues.append(
+                    Issue(
+                        rule=self.key,
+                        source=cfg.source,
+                        severity=cfg.severity,
+                        message=f"Формат страницы (раздел {i}): ожидается {exp}, найдено {act}",
+                        expected=exp,
+                        actual=act,
+                        paragraph_index=None,
+                        fixable=True,
+                    )
+                )
         return issues
 
     def fix(self, model: DocModel, cfg: RuleConfig) -> None:
@@ -54,8 +65,12 @@ class PageSizeRule(Rule):
             s.orientation = WD_ORIENT.PORTRAIT if portrait else WD_ORIENT.LANDSCAPE
 
 
-_SIDES = (("top_mm", "top_margin", "верхнее"), ("bottom_mm", "bottom_margin", "нижнее"),
-          ("left_mm", "left_margin", "левое"), ("right_mm", "right_margin", "правое"))
+_SIDES = (
+    ("top_mm", "top_margin", "верхнее"),
+    ("bottom_mm", "bottom_margin", "нижнее"),
+    ("left_mm", "left_margin", "левое"),
+    ("right_mm", "right_margin", "правое"),
+)
 
 
 @register
@@ -71,10 +86,18 @@ class PageMarginsRule(Rule):
                 act = _mm(getattr(s, attr))
                 if abs(act - exp) > _MARGIN_TOL_MM:
                     e, a = f"{fmt_num(exp, 1)} мм", f"{fmt_num(act, 1)} мм"
-                    issues.append(Issue(
-                        rule=self.key, source=cfg.source, severity=cfg.severity,
-                        message=f"Поле {name} (раздел {i}): ожидается {e}, найдено {a}",
-                        expected=e, actual=a, paragraph_index=None, fixable=True))
+                    issues.append(
+                        Issue(
+                            rule=self.key,
+                            source=cfg.source,
+                            severity=cfg.severity,
+                            message=f"Поле {name} (раздел {i}): ожидается {e}, найдено {a}",
+                            expected=e,
+                            actual=a,
+                            paragraph_index=None,
+                            fixable=True,
+                        )
+                    )
         return issues
 
     def fix(self, model: DocModel, cfg: RuleConfig) -> None:

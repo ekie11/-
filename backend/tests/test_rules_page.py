@@ -28,6 +28,7 @@ def test_margins_violation_and_fix():
 def test_margins_all_sections_checked():
     from docx.enum.section import WD_SECTION
     from docx.shared import Mm
+
     doc = build_docx(BLOCKS)
     s2 = doc.add_section(WD_SECTION.NEW_PAGE)
     s2.left_margin = Mm(10)
@@ -39,6 +40,7 @@ def test_margins_all_sections_checked():
 
 def test_size_ok_and_violation():
     from docx.shared import Mm
+
     assert check("page.size", build_docx(BLOCKS)) == []
     doc = build_docx(BLOCKS)
     s = doc.sections[0]

@@ -5,3 +5,10 @@ class FormatFlow(StatesGroup):
     waiting_input = State()
     choosing_profile = State()
     choosing_mode = State()
+
+
+class GuidelineFlow(StatesGroup):
+    waiting_input = State()
+    choosing_base = State()
+    reviewing = State()
+    naming = State()

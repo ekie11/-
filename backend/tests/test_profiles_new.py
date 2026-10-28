@@ -19,8 +19,12 @@ BLOCKS = [
     ("table", "a|b;c|d"),
 ]
 KW = dict(  # noqa: C408
-    margins_mm=(20, 20, 20, 10), font="Times New Roman", size_pt=14,
-    line_spacing=1.5, indent_cm=1.25, align="justify",
+    margins_mm=(20, 20, 20, 10),
+    font="Times New Roman",
+    size_pt=14,
+    line_spacing=1.5,
+    indent_cm=1.25,
+    align="justify",
 )
 
 

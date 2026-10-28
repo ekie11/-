@@ -53,7 +53,7 @@ class ApiClient:
         try:
             body = resp.json()
             if isinstance(body, dict) and isinstance(body.get("detail"), str):
-                detail = body["detail"]
+                detail = body["detail"].strip() or UNAVAILABLE
         except ValueError:
             pass
         raise ApiError(resp.status_code, detail)
@@ -123,6 +123,9 @@ class ApiClient:
 
     async def profile_json(self, user_id: int, name: str | None, id: str) -> bytes:
         return (await self._request("GET", f"/profiles/{id}/export", user_id, name)).content
+
+    async def profile_fields(self, user_id: int, name: str | None) -> dict:
+        return await self._json("GET", "/profile-fields", user_id, name)
 
     async def config(self) -> dict:
         try:

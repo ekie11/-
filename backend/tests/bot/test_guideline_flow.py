@@ -1,0 +1,131 @@
+from aiogram.methods import DeleteMessage
+
+from tests.bot.conftest import multipart_fields
+
+MENU_NO_EXTRACT = ["Оформить документ", "Мои профили", "История", "Помощь"]
+
+
+def to_base(bot):
+    bot.say("/start")
+    bot.press_button("Создать профиль из методички")
+    bot.send_document("методичка.docx", b"GUIDE")
+
+
+def to_review(bot):
+    to_base(bot)
+    bot.press_button("ГОСТ 7.32-2017")
+
+
+def test_ten_found_two_pages_toggle_and_create(bot):
+    to_review(bot)
+    texts = bot.session.texts()
+    assert "Читаем методичку…" in texts
+    assert any("Не поддерживается" in t and "Шрифт Arial" in t for t in texts)
+    page = texts[-1]
+    assert "1. Верхнее поле: 20 мм — «поле 0» (стр. 2)" in page
+    assert "8. " in page and "9. " not in page
+    buttons = bot.session.button_texts()
+    assert buttons[0].startswith("✅ 1.") and "›" in buttons
+    cb = bot.session.callback_for(buttons[0])
+    assert cb == "g:t:0" and len(cb.encode()) <= 64
+    bot.press_button(buttons[0])  # снимаем первый
+    assert bot.session.button_texts()[0].startswith("⬜ 1.")
+    bot.press("g:p:1")
+    assert "9. " in bot.session.texts()[-1] and "10. " in bot.session.texts()[-1]
+    assert "‹" in bot.session.button_texts()
+    bot.press_button("Создать профиль")
+    assert "Как назвать профиль? («-» — по имени файла)" in bot.session.texts()[-1]
+    bot.say("-")
+    assert bot.fake_api.profile_posts == [{"accepted": list(range(1, 10)), "name": "методичка"}]
+    assert "Профиль «методичка» создан" in bot.session.texts()[-1]
+    assert bot.session.button_texts() == ["Использовать сейчас", "Открыть на сайте", "В меню"]
+    bot.press_button("Использовать сейчас")
+
+
+def test_use_now_preselects_created_profile(bot):
+    bot.fake_api.profiles.append({"id": "new1", "name": "Новый", "base": None, "readonly": False})
+    to_review(bot)
+    bot.press_button("Создать профиль")
+    bot.say("Новый")
+    assert bot.fake_api.profile_posts[0]["name"] == "Новый"
+    bot.press_button("Использовать сейчас")
+    assert "Профиль: Новый" in bot.session.texts()[-1]
+
+
+def test_base_buttons_gosts_only_default_first(bot):
+    bot.fake_api.profiles = [
+        {"id": "other", "name": "ГОСТ Р 7.0.97", "base": None, "readonly": True},
+        {"id": "gost-7.32-2017", "name": "ГОСТ 7.32-2017", "base": None, "readonly": True},
+        {"id": "p1", "name": "Мой профиль", "base": "x", "readonly": False},
+    ]
+    to_base(bot)
+    assert bot.session.button_texts() == ["ГОСТ 7.32-2017", "ГОСТ Р 7.0.97"]
+    bot.press_button("ГОСТ Р 7.0.97")
+    post = next(r for r in bot.fake_api.requests if r.url.path == "/extractions")
+    assert multipart_fields(post)["base_profile_id"] == b"other"
+
+
+def test_nothing_selected_cannot_create(bot):
+    bot.fake_api.found = bot.fake_api.found[:1]
+    to_review(bot)
+    bot.press("g:t:0")
+    n = len(bot.session.texts())
+    bot.press("g:ok")
+    assert len(bot.session.texts()) == n and not bot.fake_api.profile_posts
+
+
+def test_text_input_and_pdf_accepted_other_rejected(bot):
+    bot.say("/start")
+    bot.press_button("Создать профиль из методички")
+    bot.send_document("a.zip", b"x")
+    assert "Пришлите методичку" in bot.session.texts()[-1]
+    bot.say("Поля 20 мм")
+    bot.say("Готово")
+    bot.press_button("ГОСТ 7.32-2017")
+    post = next(r for r in bot.fake_api.requests if r.url.path == "/extractions")
+    assert multipart_fields(post)["text"] == "Поля 20 мм".encode()
+    bot.press_button("Создать профиль")
+    bot.say("-")
+    assert bot.fake_api.profile_posts[0]["name"] == "Профиль из методички"
+
+
+def test_pdf_and_big_file(bot):
+    bot.say("/start")
+    bot.press_button("Создать профиль из методички")
+    bot.send_document("big.pdf", b"x", size=21 * 1024 * 1024)
+    assert "Файл больше 20 МБ" in bot.session.texts()[-1]
+    bot.send_document("ok.pdf", b"%PDF")
+    assert bot.session.button_texts() == ["ГОСТ 7.32-2017"]
+
+
+def test_limit_error_shows_detail_and_drops_status(bot):
+    bot.fake_api.error = (429, "Лимит извлечений на сегодня исчерпан")
+    to_review(bot)
+    assert "Лимит извлечений" in bot.session.texts()[-1]
+    assert len(bot.session.of(DeleteMessage)) == 1
+
+
+def test_failed_extraction_shows_error(bot):
+    bot.fake_api.extraction_statuses = ["failed"]
+    bot.fake_api.extraction_error = "Не вышло"
+    to_review(bot)
+    assert "Не вышло" in bot.session.texts()[-1]
+
+
+def test_feature_off_hides_menu_button(bot):
+    bot.fake_api.extraction_enabled = False
+    bot.say("/start")
+    assert bot.session.button_texts() == MENU_NO_EXTRACT
+
+
+def test_availability_cached_and_network_error_keeps_button(bot):
+    bot.say("/start")
+    bot.say("/start")
+    quota_calls = [r for r in bot.fake_api.requests if r.url.path == "/extractions/quota"]
+    assert len(quota_calls) == 1
+    assert "Создать профиль из методички" in bot.session.button_texts()
+
+
+def test_stale_guideline_buttons(bot):
+    bot.press("g:t:0")
+    assert "Начните заново" in bot.session.texts()[-1]

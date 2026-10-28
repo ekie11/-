@@ -184,10 +184,10 @@ def analyze(doc) -> DocModel:
         return " ".join(p.text.split()).upper()
 
     # Титульный лист
-    first = next(
-        (p.index for p in items if p.role in (Role.STRUCTURAL, Role.HEADING_1)), None
+    first = next((p.index for p in items if p.role in (Role.STRUCTURAL, Role.HEADING_1)), None)
+    has_marker = any(
+        p.role == Role.STRUCTURAL and norm(p) in ("СОДЕРЖАНИЕ", "РЕФЕРАТ") for p in items
     )
-    has_marker = any(p.role == Role.STRUCTURAL and norm(p) in ("СОДЕРЖАНИЕ", "РЕФЕРАТ") for p in items)
     if first is not None and has_marker:
         for p in items[:first]:
             if p.role not in (Role.EMPTY, Role.IN_TABLE):
@@ -202,10 +202,13 @@ def analyze(doc) -> DocModel:
         in_field = toc_field_paragraphs(doc)
         orig = {p.index: p.role for p in items}
         head_roles = (Role.STRUCTURAL, Role.HEADING_1, Role.HEADING_2, Role.HEADING_3)
+
         def repeated_later(p) -> bool:
             keys = toc_keys(p.text)
-            return any(q.index > p.index and orig[q.index] in head_roles
-                       and toc_keys(q.text) & keys for q in items)
+            return any(
+                q.index > p.index and orig[q.index] in head_roles and toc_keys(q.text) & keys
+                for q in items
+            )
 
         for p in items[toc_start + 1 :]:
             if p.role in (Role.EMPTY, Role.IN_TABLE):
@@ -220,7 +223,10 @@ def analyze(doc) -> DocModel:
     for p in items:
         if p.role == Role.STRUCTURAL:
             in_refs = norm(p) in REFERENCE_TITLES
-        elif (in_refs and _REF_ENTRY.match(p.text)
-              and p.role in (Role.HEADING_1, Role.HEADING_2, Role.HEADING_3)):
+        elif (
+            in_refs
+            and _REF_ENTRY.match(p.text)
+            and p.role in (Role.HEADING_1, Role.HEADING_2, Role.HEADING_3)
+        ):
             p.role = Role.LIST_ITEM
     return DocModel(doc=doc, paragraphs=items)

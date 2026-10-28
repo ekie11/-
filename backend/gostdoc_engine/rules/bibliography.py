@@ -24,30 +24,54 @@ class BibliographyRule(Rule):
 
     def check(self, model: DocModel, cfg: RuleConfig) -> list[Issue]:
         def issue(msg, idx, severity=None):
-            return Issue(rule=self.key, source=cfg.source, severity=severity or cfg.severity,
-                         message=msg, expected="", actual="", paragraph_index=idx, fixable=False)
+            return Issue(
+                rule=self.key,
+                source=cfg.source,
+                severity=severity or cfg.severity,
+                message=msg,
+                expected="",
+                actual="",
+                paragraph_index=idx,
+                fixable=False,
+            )
 
         section = find_section(model)
         if section is None:
-            if any(_CITATION.search(p.text) for p in model.paragraphs
-                   if p.role not in (Role.IN_TABLE, Role.EMPTY)):
-                return [issue("Не найден раздел «Список использованных источников»", None,
-                              "recommendation")]
+            if any(
+                _CITATION.search(p.text)
+                for p in model.paragraphs
+                if p.role not in (Role.IN_TABLE, Role.EMPTY)
+            ):
+                return [
+                    issue(
+                        "Не найден раздел «Список использованных источников»",
+                        None,
+                        "recommendation",
+                    )
+                ]
             return []
         issues = []
         prev = 0
         entries = parse_entries(section)
         if is_unnumbered(section):
-            issues.append(issue("Источники в списке не пронумерованы",
-                                entries[0].paragraph_index, "recommendation"))
+            issues.append(
+                issue(
+                    "Источники в списке не пронумерованы",
+                    entries[0].paragraph_index,
+                    "recommendation",
+                )
+            )
         for pos, e in enumerate(entries, start=1):
             if e.number is None:
                 e.number = pos
         for entry in entries:
             if entry.number != prev + 1:
-                issues.append(issue(
-                    f"Источник {entry.number}: нарушена нумерация, ожидался номер {prev + 1}",
-                    entry.paragraph_index))
+                issues.append(
+                    issue(
+                        f"Источник {entry.number}: нарушена нумерация, ожидался номер {prev + 1}",
+                        entry.paragraph_index,
+                    )
+                )
             prev = entry.number
             for msg in check_entry(entry):
                 rec = "вместо «[Электронный ресурс]»" in msg or "вместо дефиса" in msg
@@ -73,8 +97,13 @@ class BibliographyRule(Rule):
                     out.append(issue(f"Ссылка [{n}] указывает на несуществующий источник", idx))
         for e in entries:
             if e.number not in cited:
-                out.append(issue(f"На источник {e.number} нет ссылки в тексте",
-                                 e.paragraph_index, "recommendation"))
+                out.append(
+                    issue(
+                        f"На источник {e.number} нет ссылки в тексте",
+                        e.paragraph_index,
+                        "recommendation",
+                    )
+                )
         known = [n for n in first if n in numbers]
         if cfg.value.get("order") == "mention" and known != sorted(known):
             out.append(issue("Источники пронумерованы не в порядке упоминания", None))

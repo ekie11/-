@@ -14,7 +14,7 @@ MIN_QUOTE = 8
 MAX_TEXT_VALUE = 200
 MAX_QUOTE = 300
 
-_QUOTES = set("«»“”„\"")
+_QUOTES = set('«»“”„"')
 _DASHES = set("—–‑-")
 _PAGE = re.compile(r"\[стр\. (\d+)\]")
 _NUMBER = re.compile(r"-?\d+(?:[.,]\d+)?")
@@ -258,7 +258,11 @@ def validate(raw: dict, text: str) -> dict:
         if any(nq in fq or fq in nq for fq in found_quotes):
             continue
         unsupported.append(
-            {"text": desc.strip()[:UNSUPPORTED_TEXT_MAX], "quote": item["quote"].strip(), "page": page}
+            {
+                "text": desc.strip()[:UNSUPPORTED_TEXT_MAX],
+                "quote": item["quote"].strip(),
+                "page": page,
+            }
         )
 
     return {"found": found, "unsupported": unsupported, "rejected_count": rejected}

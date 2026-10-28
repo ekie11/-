@@ -137,8 +137,15 @@ def effective_first_line_indent_cm(par: Paragraph) -> float:
     return 0.0 if value is None else value
 
 
-_JC = {"both": "justify", "distribute": "justify", "left": "left", "start": "left",
-       "center": "center", "right": "right", "end": "right"}
+_JC = {
+    "both": "justify",
+    "distribute": "justify",
+    "left": "left",
+    "start": "left",
+    "center": "center",
+    "right": "right",
+    "end": "right",
+}
 
 
 def _jc(ppr):

@@ -230,7 +230,16 @@ def test_cli_unknown_profile(tmp_path):
     src = tmp_path / "a.txt"
     src.write_text("Текст.\n", encoding="utf-8")
     _assert_user_error(
-        _cli(str(src), "--text", "--profile", "nope-1", "--mode", "check", "-o", str(tmp_path / "o.docx"))
+        _cli(
+            str(src),
+            "--text",
+            "--profile",
+            "nope-1",
+            "--mode",
+            "check",
+            "-o",
+            str(tmp_path / "o.docx"),
+        )
     )
 
 
@@ -238,7 +247,16 @@ def test_cli_path_traversal_profile(tmp_path):
     src = tmp_path / "a.txt"
     src.write_text("Текст.\n", encoding="utf-8")
     _assert_user_error(
-        _cli(str(src), "--text", "--profile", "../x", "--mode", "check", "-o", str(tmp_path / "o.docx"))
+        _cli(
+            str(src),
+            "--text",
+            "--profile",
+            "../x",
+            "--mode",
+            "check",
+            "-o",
+            str(tmp_path / "o.docx"),
+        )
     )
 
 
@@ -250,7 +268,9 @@ def test_builtin_profile_rejects_bad_id():
 
 
 def test_cli_missing_input(tmp_path):
-    _assert_user_error(_cli(str(tmp_path / "none.docx"), "--mode", "check", "-o", str(tmp_path / "o.docx")))
+    _assert_user_error(
+        _cli(str(tmp_path / "none.docx"), "--mode", "check", "-o", str(tmp_path / "o.docx"))
+    )
 
 
 def test_cli_non_utf8_text(tmp_path):
@@ -268,12 +288,15 @@ def test_body_final_period_drop_detected():
 
 
 def test_reference_entries_not_formatted_as_headings():
-    blocks = [("structural", "введение"), ("p", "Текст."),
-              ("structural", "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ"),
-              ("source", "1. Иванов И. И. Название"), ("source", "2. Петров П. П. Другое")]
+    blocks = [
+        ("structural", "введение"),
+        ("p", "Текст."),
+        ("structural", "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ"),
+        ("source", "1. Иванов И. И. Название"),
+        ("source", "2. Петров П. П. Другое"),
+    ]
     res = process(save(build_docx(blocks)), P, "format")
-    assert not [i for i in res.report["issues"]
-                if i["rule"].startswith("headings.section")]
+    assert not [i for i in res.report["issues"] if i["rule"].startswith("headings.section")]
     out = docx.Document(io.BytesIO(res.docx_bytes))
     for par in out.paragraphs[-2:]:
         assert not par.paragraph_format.page_break_before
@@ -281,10 +304,13 @@ def test_reference_entries_not_formatted_as_headings():
 
 
 def test_bibliography_format_twice_stable():
-    blocks = [("structural", "введение"), ("p", "Как в [2] и [1]."),
-              ("structural", "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ"),
-              ("source", "1. Иванов И. Книга. - М. :Наука, 2020. - 10 с. Текст:электронный"),
-              ("source", "2. Статья//Журнал. - 2020.")]
+    blocks = [
+        ("structural", "введение"),
+        ("p", "Как в [2] и [1]."),
+        ("structural", "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ"),
+        ("source", "1. Иванов И. Книга. - М. :Наука, 2020. - 10 с. Текст:электронный"),
+        ("source", "2. Статья//Журнал. - 2020."),
+    ]
     data = save(build_docx(blocks))
     first = process(data, P, "format")
     second = process(first.docx_bytes, P, "format")

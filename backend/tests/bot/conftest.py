@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from datetime import UTC, datetime
 from itertools import count
 
@@ -33,6 +34,18 @@ from aiogram.types import (
 from gostdoc_bot.api import ApiClient
 from gostdoc_bot.main import build_dispatcher
 
+FIELDS = {
+    "rule_labels": {"page.margins": "Поля"},
+    "fields": [
+        {
+            "rule": "page.margins",
+            "path": "top_mm",
+            "label": "Верхнее поле",
+            "kind": "number",
+            "unit": "мм",
+        }
+    ],
+}
 USER = User(id=42, is_bot=False, first_name="Иван", last_name="Петров")
 CHAT = Chat(id=42, type="private")
 
@@ -124,6 +137,32 @@ class FakeApi:
         self.poll_failures = 0
         self.job_error = None
         self.network_down = False
+        self.extraction_enabled = True
+        self.jobs = [
+            {
+                "id": f"j{i}",
+                "status": "done" if i != 2 else "running",
+                "mode": "format",
+                "profile_name": "Мой профиль",
+                "created_at": f"2026-10-2{i}T10:00:00+00:00",
+                "expires_at": "2999-01-01T00:00:00+00:00",
+            }
+            for i in range(1, 7)
+        ]
+        self.found = [
+            {
+                "rule": "page.margins",
+                "path": "top_mm",
+                "value": 20 + i,
+                "quote": f"поле {i}",
+                "page": 2,
+            }
+            for i in range(10)
+        ]
+        self.unsupported = [{"text": "Шрифт Arial", "quote": "Arial", "page": 1}]
+        self.extraction_statuses = ["queued", "running", "done"]
+        self.extraction_error = None
+        self.profile_posts: list[dict] = []
 
     def handler(self, request: httpx.Request) -> httpx.Response:
         self.requests.append(request)
@@ -159,6 +198,41 @@ class FakeApi:
             return httpx.Response(200, content=b"DOCX-RESULT")
         if path == "/jobs/j1/pdf":
             return httpx.Response(200, content=b"PDF-RESULT")
+        if path == "/jobs" and request.method == "GET":
+            return httpx.Response(200, json=self.jobs)
+        if path in ("/jobs/j1/docx", "/jobs/j3/docx"):
+            return httpx.Response(200, content=b"DOCX-RESULT")
+        if path == "/profiles/p1/export":
+            return httpx.Response(200, content=b'{"id": "p1"}')
+        if path == "/profile-fields":
+            return httpx.Response(200, json=FIELDS)
+        if path == "/extractions/quota":
+            if not self.extraction_enabled:
+                return httpx.Response(503, json={"detail": "Функция не настроена"})
+            return httpx.Response(200, json={"used": 0, "limit": 5})
+        if path == "/extractions" and request.method == "POST":
+            if self.error:
+                return httpx.Response(self.error[0], json={"detail": self.error[1]})
+            return httpx.Response(202, json={"id": "e1"})
+        if path == "/extractions/e1":
+            status = (
+                self.extraction_statuses.pop(0)
+                if len(self.extraction_statuses) > 1
+                else self.extraction_statuses[0]
+            )
+            result = {"found": self.found, "unsupported": self.unsupported}
+            return httpx.Response(
+                200,
+                json={
+                    "id": "e1",
+                    "status": status,
+                    "result": result if status == "done" else None,
+                    "error": self.extraction_error,
+                },
+            )
+        if path == "/extractions/e1/profile":
+            self.profile_posts.append(json.loads(request.content))
+            return httpx.Response(201, json={"profile_id": "new1"})
         return httpx.Response(404, json={"detail": "нет"})
 
     def client(self) -> ApiClient:

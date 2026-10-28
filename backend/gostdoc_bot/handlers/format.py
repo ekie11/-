@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-import asyncio
-import time
-
 from aiogram import Bot, F, Router
-from aiogram.exceptions import TelegramAPIError, TelegramBadRequest
+from aiogram.exceptions import TelegramAPIError
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import BufferedInputFile, CallbackQuery, Message
@@ -14,33 +11,28 @@ from aiogram.types import BufferedInputFile, CallbackQuery, Message
 from .. import keyboards, texts
 from ..api import UNAVAILABLE, ApiClient, ApiError
 from ..states import FormatFlow
+from .common import (
+    MAX_FILE,
+    Availability,
+    download_file,
+    drop,
+    main_menu,
+    poll,
+    too_big,
+)
+from .common import fail as _fail
+from .common import reply as _reply
+from .common import who as _who
 
-MAX_FILE = 20 * 1024 * 1024
-MAX_WAIT_S = 300
 SHOWN_ISSUES = 10
 ISSUE_CHARS = 300
-POLL_RETRIES = 3
-
-
-def _who(user) -> tuple[int, str | None]:
-    return user.id, (user.full_name or None)
-
-
-async def _reply(target: Message, text: str) -> None:
-    """Ответ с кнопкой «В меню»; сбой самого Telegram не должен ронять обработчик."""
-    try:
-        await target.answer(text, reply_markup=keyboards.to_menu())
-    except TelegramAPIError:
-        pass
-
-
-async def _fail(target: Message, exc: ApiError, state: FSMContext | None = None) -> None:
-    if state is not None:
-        await state.clear()
-    await target.answer(exc.detail, reply_markup=keyboards.to_menu())
+LABELS = {"queued": texts.QUEUED, "running": texts.PROCESSING}
 
 
 async def _ask_profile(message: Message, user, state: FSMContext, api: ApiClient) -> None:
+    if (await state.get_data()).get("profile_id"):  # профиль выбран заранее («Использовать»)
+        await state.set_state(FormatFlow.choosing_mode)
+        return await message.answer(texts.CHOOSE_MODE, reply_markup=keyboards.modes())
     uid, name = _who(user)
     try:
         profiles = await api.profiles(uid, name)
@@ -62,36 +54,24 @@ async def _finish_text(message: Message, user, state: FSMContext, api: ApiClient
     await _ask_profile(message, user, state, api)
 
 
+async def start_flow(
+    target: Message, state: FSMContext, profile_id: str | None = None, profile_name: str = ""
+) -> None:
+    """Шаг «пришлите документ»; profile_id — профиль, выбранный заранее."""
+    await state.clear()
+    await state.set_state(FormatFlow.waiting_input)
+    await state.update_data(parts=[], file_id=None)
+    text = texts.SEND_DOC
+    if profile_id:
+        await state.update_data(profile_id=profile_id)
+        text = texts.USING_PROFILE.format(name=profile_name) + "\n" + text
+    await target.answer(text)
+
+
 async def poll_job(
     status: Message, api: ApiClient, uid: int, name: str | None, job_id: str, interval: float
 ) -> dict | None:
-    """Опрашивает задачу, редактируя одно сообщение; None — не дождались."""
-    shown = texts.QUEUED
-    deadline = time.monotonic() + MAX_WAIT_S
-    failures = 0
-    while time.monotonic() < deadline:
-        try:
-            job = await api.job(uid, name, job_id)
-            failures = 0
-        except ApiError as exc:
-            failures += 1
-            if (exc.status != 0 and exc.status < 500) or failures >= POLL_RETRIES:
-                raise
-            await asyncio.sleep(interval)
-            continue
-        if job["status"] in ("done", "error", "expired"):
-            return job
-        label = texts.PROCESSING if job["status"] == "running" else texts.QUEUED
-        if label != shown:
-            try:
-                await status.edit_text(label)
-            except TelegramBadRequest:
-                pass  # «message is not modified» и подобное
-            except TelegramAPIError:
-                pass
-            shown = label
-        await asyncio.sleep(interval)
-    return None
+    return await poll(status, lambda: api.job(uid, name, job_id), LABELS, interval)
 
 
 async def send_result(
@@ -131,10 +111,7 @@ def build_router():
     @router.callback_query(F.data == "menu:format")
     async def begin(cb: CallbackQuery, state: FSMContext) -> None:
         await cb.answer()
-        await state.clear()
-        await state.set_state(FormatFlow.waiting_input)
-        await state.update_data(parts=[], file_id=None)
-        await cb.message.answer(texts.SEND_DOC)
+        await start_flow(cb.message, state)
 
     @router.message(StateFilter(FormatFlow.waiting_input), F.document)
     async def got_document(message: Message, state: FSMContext, api: ApiClient) -> None:
@@ -170,13 +147,15 @@ def build_router():
         await message.answer(texts.SEND_DOC)
 
     @router.callback_query(StateFilter(FormatFlow.choosing_profile), F.data.regexp(r"^fp:\d+$"))
-    async def chose_profile(cb: CallbackQuery, state: FSMContext) -> None:
+    async def chose_profile(cb: CallbackQuery, state: FSMContext, avail: Availability) -> None:
         await cb.answer()
         ids = (await state.get_data()).get("profile_ids", [])
         idx = int(cb.data.split(":")[1])
         if idx >= len(ids):
             await state.clear()
-            return await cb.message.answer(texts.RESTART, reply_markup=keyboards.menu())
+            return await cb.message.answer(
+                texts.RESTART, reply_markup=await main_menu(avail, cb.from_user)
+            )
         await state.update_data(profile_id=ids[idx])
         await state.set_state(FormatFlow.choosing_mode)
         await cb.message.answer(texts.CHOOSE_MODE, reply_markup=keyboards.modes())
@@ -196,22 +175,22 @@ def build_router():
         mode = cb.data.split(":")[1]
         data = await state.get_data()
         uid, name = _who(cb.from_user)
+        status = None
         try:
             status = await cb.message.answer(texts.QUEUED)
             file = None
             text = None
             if data.get("file_id"):
-                tg_file = await bot.get_file(data["file_id"])
-                buf = await bot.download_file(tg_file.file_path)
-                file = ("input.docx", buf.read())
+                file = await download_file(bot, data["file_id"], "input.docx")
             else:
                 text = "\n".join(data.get("parts", []))
             job = await api.create_job(uid, name, file, text, data["profile_id"], mode)
         except ApiError as exc:  # состояние сохраняем: можно выбрать режим ещё раз
+            await drop(status)
             return await _reply(cb.message, exc.detail)
         except TelegramAPIError as exc:
-            too_big = "too big" in str(exc).lower()
-            return await _reply(cb.message, texts.FILE_TOO_BIG if too_big else UNAVAILABLE)
+            await drop(status)
+            return await _reply(cb.message, texts.FILE_TOO_BIG if too_big(exc) else UNAVAILABLE)
         await state.clear()
         try:
             final = await poll_job(status, api, uid, name, job["id"], poll_interval)

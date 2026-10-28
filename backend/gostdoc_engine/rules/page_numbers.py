@@ -12,14 +12,20 @@ from ..units import _style_chain
 from .base import Issue, Rule, register
 
 _PAGE_FIELD = re.compile(r"^\s*PAGE\b", re.IGNORECASE)
-_ALIGN_NAMES = {"justify": "по ширине", "left": "по левому краю",
-                "center": "по центру", "right": "по правому краю"}
+_ALIGN_NAMES = {
+    "justify": "по ширине",
+    "left": "по левому краю",
+    "center": "по центру",
+    "right": "по правому краю",
+}
 
 
 def _has_page_field(par) -> bool:
     if any(_PAGE_FIELD.match(t.text or "") for t in par._p.xpath(".//w:instrText")):
         return True
-    return any(_PAGE_FIELD.match(f.get(qn("w:instr")) or "") for f in par._p.xpath(".//w:fldSimple"))
+    return any(
+        _PAGE_FIELD.match(f.get(qn("w:instr")) or "") for f in par._p.xpath(".//w:fldSimple")
+    )
 
 
 def _alignment(par) -> str:
@@ -29,8 +35,9 @@ def _alignment(par) -> str:
     for pr in chain:
         jc = pr.find(qn("w:jc")) if pr is not None else None
         if jc is not None:
-            return {"both": "justify", "center": "center", "right": "right",
-                    "end": "right"}.get(jc.get(qn("w:val")), "left")
+            return {"both": "justify", "center": "center", "right": "right", "end": "right"}.get(
+                jc.get(qn("w:val")), "left"
+            )
     return "left"
 
 
@@ -90,8 +97,16 @@ class PageNumbersRule(Rule):
     fixable = True
 
     def _issue(self, cfg, msg, exp, act):
-        return Issue(rule=self.key, source=cfg.source, severity=cfg.severity, message=msg,
-                     expected=exp, actual=act, paragraph_index=None, fixable=True)
+        return Issue(
+            rule=self.key,
+            source=cfg.source,
+            severity=cfg.severity,
+            message=msg,
+            expected=exp,
+            actual=act,
+            paragraph_index=None,
+            fixable=True,
+        )
 
     def check(self, model: DocModel, cfg: RuleConfig) -> list[Issue]:
         attr, other, place, other_place = POSITIONS[_position(cfg)]
@@ -102,23 +117,47 @@ class PageNumbersRule(Rule):
             stray = _existing_field_paragraph(s, other)
             if par is None:
                 act = other_place if stray is not None else "отсутствует"
-                issues.append(self._issue(
-                    cfg, f"Номер страницы{where}: ожидается {place}, найден {act}", place, act))
+                issues.append(
+                    self._issue(
+                        cfg, f"Номер страницы{where}: ожидается {place}, найден {act}", place, act
+                    )
+                )
             else:
                 act = _alignment(par)
                 if act != "center":
                     e, a = _ALIGN_NAMES["center"], _ALIGN_NAMES[act]
-                    issues.append(self._issue(
-                        cfg, f"Номер страницы{where}: ожидается выравнивание {e}, найдено {a}", e, a))
+                    issues.append(
+                        self._issue(
+                            cfg,
+                            f"Номер страницы{where}: ожидается выравнивание {e}, найдено {a}",
+                            e,
+                            a,
+                        )
+                    )
                 if stray is not None:
-                    issues.append(self._issue(
-                        cfg, f"Номер страницы{where}: ожидается только {place}, найден также "
-                        f"{other_place}", f"только {place}", f"также {other_place}"))
-            if par is not None and i == 0 and not cfg.value.get("show_on_first", False) \
-                    and not s.different_first_page_header_footer:
-                issues.append(self._issue(
-                    cfg, "Номер на первой странице: ожидается скрыт, найден показан",
-                    "скрыт", "показан"))
+                    issues.append(
+                        self._issue(
+                            cfg,
+                            f"Номер страницы{where}: ожидается только {place}, найден также "
+                            f"{other_place}",
+                            f"только {place}",
+                            f"также {other_place}",
+                        )
+                    )
+            if (
+                par is not None
+                and i == 0
+                and not cfg.value.get("show_on_first", False)
+                and not s.different_first_page_header_footer
+            ):
+                issues.append(
+                    self._issue(
+                        cfg,
+                        "Номер на первой странице: ожидается скрыт, найден показан",
+                        "скрыт",
+                        "показан",
+                    )
+                )
         return issues
 
     def fix(self, model: DocModel, cfg: RuleConfig) -> None:

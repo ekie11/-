@@ -82,8 +82,14 @@ def test_stuck_extractions_marked_failed(client, db_session, settings):
     ]
     for i, st, created, started in rows:
         db_session.add(
-            Extraction(id=i, user_id=1, status=st, base_profile_id="x",
-                       created_at=created, started_at=started)
+            Extraction(
+                id=i,
+                user_id=1,
+                status=st,
+                base_profile_id="x",
+                created_at=created,
+                started_at=started,
+            )
         )
     db_session.commit()
     cleanup_expired(db_session, settings, NOW)

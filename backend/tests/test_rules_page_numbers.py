@@ -103,7 +103,8 @@ def test_top_missing():
     doc = build_docx(BLOCKS, page_numbers=False)
     issues = check_top(doc)
     assert [i.message for i in issues] == [
-        "Номер страницы: ожидается вверху страницы, найден отсутствует"]
+        "Номер страницы: ожидается вверху страницы, найден отсутствует"
+    ]
     fix_top(doc)
     assert check_top(doc) == []
 

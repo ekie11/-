@@ -63,7 +63,7 @@ def test_groups_exist_and_kinds_valid():
 @pytest.mark.parametrize(("pid", "profile"), PROFILES)
 def test_every_field_points_to_existing_path(pid, profile):
     rules = profile.model_dump()["rules"]
-    for (rule, path) in fields.field_index():
+    for rule, path in fields.field_index():
         assert rule in rules, rule
         assert at(rules[rule]["value"], path) is not None, f"{rule}.{path}"
 

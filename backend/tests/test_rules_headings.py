@@ -8,8 +8,13 @@ from gostdoc_engine.rules.base import REGISTRY
 from tests.builders import build_docx
 
 P = builtin_profile("gost-7.32-2017")
-BLOCKS = [("structural", "ВВЕДЕНИЕ"), ("p", "Текст."), ("h1", "1 Анализ"),
-          ("h2", "1.1 Подраздел"), ("p", "Текст.")]
+BLOCKS = [
+    ("structural", "ВВЕДЕНИЕ"),
+    ("p", "Текст."),
+    ("h1", "1 Анализ"),
+    ("h2", "1.1 Подраздел"),
+    ("p", "Текст."),
+]
 
 
 def check(key, doc):
@@ -49,9 +54,11 @@ def test_section_align_indent_trailing_period():
     p.paragraph_format.first_line_indent = None
     p.runs[0].text = "1.1 Подраздел."
     got = msgs("headings.section", doc)
-    assert got == ["Заголовок: ожидается выравнивание по левому краю, найдено по центру",
-                   "Заголовок: ожидается абзацный отступ 1,25 см, найдено 0 см",
-                   "Заголовок: ожидается без точки в конце"]
+    assert got == [
+        "Заголовок: ожидается выравнивание по левому краю, найдено по центру",
+        "Заголовок: ожидается абзацный отступ 1,25 см, найдено 0 см",
+        "Заголовок: ожидается без точки в конце",
+    ]
     fix("headings.section", doc)
     assert check("headings.section", doc) == []
     assert p.text == "1.1 Подраздел"
