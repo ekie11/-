@@ -13,6 +13,7 @@ from fastapi import Depends, HTTPException, Request, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from .bot_auth import bot_user
 from .db import get_db
 from .models import SessionToken, User
 
@@ -27,7 +28,9 @@ def hash_password(p: str) -> str:
     return _hasher.hash(p)
 
 
-def verify_password(h: str, p: str) -> bool:
+def verify_password(h: str | None, p: str) -> bool:
+    if not h:
+        return False
     try:
         return _hasher.verify(h, p)
     except (VerificationError, InvalidHashError):
@@ -78,6 +81,9 @@ DbDep = Annotated[Session, Depends(get_db)]
 
 
 def current_user(request: Request, db: DbDep) -> User:
+    bot = bot_user(request, db)
+    if bot is not None:
+        return bot
     row = _find_session(db, request.cookies.get(COOKIE_NAME))
     user = db.get(User, row.user_id) if row else None
     if user is None:

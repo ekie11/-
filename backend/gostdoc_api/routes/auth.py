@@ -53,7 +53,12 @@ class LoginIn(BaseModel):
 
 
 def _user_out(user: User) -> dict:
-    return {"id": user.id, "email": user.email}
+    return {
+        "id": user.id,
+        "email": user.email,
+        "telegram_name": user.telegram_name,
+        "telegram_linked": user.telegram_id is not None,
+    }
 
 
 @router.post("/register", status_code=201)
@@ -76,7 +81,8 @@ def register(body: RegisterIn, request: Request, response: Response, db: DbDep) 
 
 @router.post("/login")
 def login(body: LoginIn, request: Request, response: Response, db: DbDep) -> dict:
-    user = db.scalars(select(User).where(User.email == body.email.strip().lower())).first()
+    email = body.email.strip().lower()
+    user = db.scalars(select(User).where(User.email == email)).first() if email else None
     if user is None:
         verify_dummy(body.password)
         ok = False
