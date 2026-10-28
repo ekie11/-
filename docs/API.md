@@ -88,6 +88,8 @@ IP клиента — адрес подключения. `X-Forwarded-For` уч�
 | GET | `/health` | — | 200 `{"status":"ok"}` | — |
 | POST | `/auth/register` | JSON `{email, password}` (пароль от 8 символов) | 201 `{id, email}`, ставит cookie | 400 неверный email/короткий пароль; 409 email занят |
 | POST | `/auth/login` | JSON `{email, password}` | 200 `{id, email}`, ставит cookie | 401 неверный email или пароль |
+| POST | `/auth/telegram` | JSON — поля виджета Telegram: `{id, first_name, last_name?, username?, photo_url?, auth_date, hash}` | 200 `{id, email, telegram_name, telegram_linked}`, ставит cookie, переносит гостевые задачи; создаёт пользователя при первом входе | 401 «Не удалось подтвердить вход через Telegram» (неверная подпись или `auth_date` старше 86400 с); 503 «Функция не настроена» (нет `TELEGRAM_BOT_TOKEN`) |
+| POST | `/auth/telegram/link` | JSON — те же поля виджета | 200 `{id, email, telegram_name, telegram_linked}`, привязывает Telegram к текущему пользователю | 401; 409 «Этот Telegram уже привязан к другому аккаунту»; 503 |
 | POST | `/auth/logout` | — | 204, cookie удаляется | — |
 | GET | `/auth/me` | — | 200 `{id, email}` | 401 |
 | GET | `/profiles` | — | 200 список `{id, name, base, readonly}` (встроенные и свои; без сессии и гостю — только встроенные) | — |

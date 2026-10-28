@@ -30,7 +30,7 @@ def bot_user(request: Request, db: Session) -> User | None:
     if not expected or not hmac.compare_digest(given.encode(), expected.encode()):
         raise _unauthorized()
     raw = request.headers.get(USER_HEADER, "").strip()
-    if not (raw.isascii() and raw.isdigit()) or int(raw) <= 0:
+    if not (raw.isascii() and raw.isdigit()) or len(raw) > 19 or not 0 < int(raw) < 2**63:
         raise _unauthorized()
     tg_id = int(raw)
     # HTTP-заголовки только latin-1, поэтому бот передаёт имя в процент-кодировке
