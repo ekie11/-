@@ -6,21 +6,32 @@ import asyncio
 import time
 
 from aiogram import Bot, F, Router
+from aiogram.exceptions import TelegramAPIError, TelegramBadRequest
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import BufferedInputFile, CallbackQuery, Message
 
 from .. import keyboards, texts
-from ..api import ApiClient, ApiError
+from ..api import UNAVAILABLE, ApiClient, ApiError
 from ..states import FormatFlow
 
 MAX_FILE = 20 * 1024 * 1024
 MAX_WAIT_S = 300
 SHOWN_ISSUES = 10
+ISSUE_CHARS = 300
+POLL_RETRIES = 3
 
 
 def _who(user) -> tuple[int, str | None]:
     return user.id, (user.full_name or None)
+
+
+async def _reply(target: Message, text: str) -> None:
+    """Ответ с кнопкой «В меню»; сбой самого Telegram не должен ронять обработчик."""
+    try:
+        await target.answer(text, reply_markup=keyboards.to_menu())
+    except TelegramAPIError:
+        pass
 
 
 async def _fail(target: Message, exc: ApiError, state: FSMContext | None = None) -> None:
@@ -57,13 +68,27 @@ async def poll_job(
     """Опрашивает задачу, редактируя одно сообщение; None — не дождались."""
     shown = texts.QUEUED
     deadline = time.monotonic() + MAX_WAIT_S
+    failures = 0
     while time.monotonic() < deadline:
-        job = await api.job(uid, name, job_id)
+        try:
+            job = await api.job(uid, name, job_id)
+            failures = 0
+        except ApiError as exc:
+            failures += 1
+            if (exc.status != 0 and exc.status < 500) or failures >= POLL_RETRIES:
+                raise
+            await asyncio.sleep(interval)
+            continue
         if job["status"] in ("done", "error", "expired"):
             return job
         label = texts.PROCESSING if job["status"] == "running" else texts.QUEUED
         if label != shown:
-            await status.edit_text(label)
+            try:
+                await status.edit_text(label)
+            except TelegramBadRequest:
+                pass  # «message is not modified» и подобное
+            except TelegramAPIError:
+                pass
             shown = label
         await asyncio.sleep(interval)
     return None
@@ -83,16 +108,21 @@ async def send_result(
     issues = report.get("issues") or []
     if issues:
         lines.append(texts.ISSUES_HEAD.format(n=min(len(issues), SHOWN_ISSUES)))
-        lines += [f"{i}. {it.get('message', '')}" for i, it in enumerate(issues[:SHOWN_ISSUES], 1)]
-    await message.answer("\n".join(lines), reply_markup=keyboards.result(site_url, job["id"]))
+        lines += [
+            f"{i}. {str(it.get('message', ''))[:ISSUE_CHARS]}"
+            for i, it in enumerate(issues[:SHOWN_ISSUES], 1)
+        ]
     try:
+        await message.answer("\n".join(lines), reply_markup=keyboards.result(site_url, job["id"]))
         docx = await api.download(uid, name, job["id"], "docx")
         await message.answer_document(BufferedInputFile(docx, "result.docx"))
         if job.get("has_pdf"):
             pdf = await api.download(uid, name, job["id"], "pdf")
             await message.answer_document(BufferedInputFile(pdf, "result.pdf"))
     except ApiError as exc:
-        await message.answer(exc.detail or texts.FILES_FAILED, reply_markup=keyboards.to_menu())
+        await _reply(message, exc.detail or texts.FILES_FAILED)
+    except TelegramAPIError:
+        await _reply(message, UNAVAILABLE)
 
 
 def build_router():
@@ -165,10 +195,9 @@ def build_router():
         await cb.answer()
         mode = cb.data.split(":")[1]
         data = await state.get_data()
-        await state.clear()
         uid, name = _who(cb.from_user)
-        status = await cb.message.answer(texts.QUEUED)
         try:
+            status = await cb.message.answer(texts.QUEUED)
             file = None
             text = None
             if data.get("file_id"):
@@ -178,17 +207,22 @@ def build_router():
             else:
                 text = "\n".join(data.get("parts", []))
             job = await api.create_job(uid, name, file, text, data["profile_id"], mode)
+        except ApiError as exc:  # состояние сохраняем: можно выбрать режим ещё раз
+            return await _reply(cb.message, exc.detail)
+        except TelegramAPIError as exc:
+            too_big = "too big" in str(exc).lower()
+            return await _reply(cb.message, texts.FILE_TOO_BIG if too_big else UNAVAILABLE)
+        await state.clear()
+        try:
             final = await poll_job(status, api, uid, name, job["id"], poll_interval)
         except ApiError as exc:
-            return await _fail(cb.message, exc)
+            return await _reply(cb.message, exc.detail)
         if final is None:
-            return await cb.message.answer(texts.JOB_TIMEOUT, reply_markup=keyboards.to_menu())
+            return await _reply(cb.message, texts.JOB_TIMEOUT)
         if final["status"] == "error":
-            return await cb.message.answer(
-                final.get("error") or texts.JOB_FAILED, reply_markup=keyboards.to_menu()
-            )
+            return await _reply(cb.message, final.get("error") or texts.JOB_FAILED)
         if final["status"] == "expired":
-            return await cb.message.answer(texts.JOB_EXPIRED, reply_markup=keyboards.to_menu())
+            return await _reply(cb.message, texts.JOB_EXPIRED)
         await send_result(cb.message, api, uid, name, final, mode, site_url)
 
     return router

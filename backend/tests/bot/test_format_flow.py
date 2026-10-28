@@ -93,3 +93,81 @@ def test_stale_callback_without_state(bot):
     bot.press("fp:0")
     assert "Начните заново" in bot.session.texts()[-1]
     assert bot.session.button_texts() == MENU
+
+
+UNAVAILABLE = "Сервис временно недоступен, попробуйте позже"
+
+
+def to_mode(bot):
+    start_format(bot)
+    bot.send_document("a.docx", b"x")
+    bot.press_button("ГОСТ 7.32-2017")
+
+
+def test_network_error_shows_unavailable(bot):
+    to_mode(bot)
+    bot.fake_api.network_down = True
+    bot.press_button("Проверить — оставим комментарии")
+    assert UNAVAILABLE in bot.session.texts()[-1]
+    assert bot.session.button_texts() == ["В меню"]
+
+
+def test_edit_failure_still_delivers_result(bot):
+    from aiogram.exceptions import TelegramBadRequest, TelegramNetworkError
+    from aiogram.methods import EditMessageText
+
+    to_mode(bot)
+    bot.session.fail[EditMessageText] = TelegramBadRequest(
+        EditMessageText(text="x"), "message is not modified"
+    )
+    bot.press_button("Проверить — оставим комментарии")
+    assert any("12 замечаний" in t for t in bot.session.texts())
+    bot.session.fail[EditMessageText] = TelegramNetworkError(EditMessageText(text="x"), "net")
+    assert len(bot.session.of(SendDocument)) == 2
+
+
+def test_send_failure_gives_unavailable(bot):
+    from aiogram.exceptions import TelegramNetworkError
+
+    to_mode(bot)
+    bot.session.fail[SendDocument] = TelegramNetworkError(SendDocument, "net")
+    bot.press_button("Проверить — оставим комментарии")
+    assert UNAVAILABLE in bot.session.texts()[-1]
+
+
+def test_create_failure_keeps_state_and_retry_works(bot):
+    to_mode(bot)
+    bot.fake_api.create_failures = 1
+    bot.press_button("Оформить — исправим сами")
+    assert "x" in bot.session.texts()[-1]
+    bot.press("fm:format")
+    assert any("12 замечаний" in t for t in bot.session.texts())
+
+
+def test_transient_poll_errors_tolerated(bot):
+    to_mode(bot)
+    bot.fake_api.poll_failures = 2
+    bot.press_button("Проверить — оставим комментарии")
+    assert any("12 замечаний" in t for t in bot.session.texts())
+
+
+def test_three_poll_errors_give_up(bot):
+    to_mode(bot)
+    bot.fake_api.poll_failures = 3
+    bot.press_button("Проверить — оставим комментарии")
+    assert bot.session.button_texts() == ["В меню"]
+
+
+def test_job_error_status(bot):
+    to_mode(bot)
+    bot.fake_api.job_statuses = ["error"]
+    bot.fake_api.job_error = "Не получилось"
+    bot.press_button("Проверить — оставим комментарии")
+    assert "Не получилось" in bot.session.texts()[-1]
+
+
+def test_job_expired_status(bot):
+    to_mode(bot)
+    bot.fake_api.job_statuses = ["expired"]
+    bot.press_button("Проверить — оставим комментарии")
+    assert "Срок хранения" in bot.session.texts()[-1]

@@ -44,6 +44,7 @@ class FakeSession(BaseSession):
         super().__init__()
         self.calls: list[TelegramMethod] = []
         self.files: dict[str, bytes] = {}
+        self.fail: dict[type, Exception] = {}
         self._ids = count(1000)
 
     async def close(self) -> None:  # pragma: no cover
@@ -55,6 +56,8 @@ class FakeSession(BaseSession):
 
     async def make_request(self, bot, method, timeout=None):
         self.calls.append(method)
+        if type(method) in self.fail:
+            raise self.fail[type(method)]
         if isinstance(method, SendMessage | EditMessageText):
             return self._message(bot, method.text)
         if isinstance(method, SendDocument):
@@ -117,17 +120,29 @@ class FakeApi:
         }
         self.error: tuple[int, str] | None = None
         self.has_pdf = True
+        self.create_failures = 0
+        self.poll_failures = 0
+        self.job_error = None
+        self.network_down = False
 
     def handler(self, request: httpx.Request) -> httpx.Response:
         self.requests.append(request)
+        if self.network_down:
+            raise httpx.ConnectError("down")
         path = request.url.path
         if path == "/jobs" and request.method == "POST":
+            if self.create_failures:
+                self.create_failures -= 1
+                return httpx.Response(503, json={"detail": "x"})
             if self.error:
                 return httpx.Response(self.error[0], json={"detail": self.error[1]})
             return httpx.Response(202, json={"id": "j1", "status": "queued"})
         if path == "/profiles":
             return httpx.Response(200, json=self.profiles)
         if path == "/jobs/j1":
+            if self.poll_failures:
+                self.poll_failures -= 1
+                return httpx.Response(502, text="bad gateway")
             status = (
                 self.job_statuses.pop(0) if len(self.job_statuses) > 1 else self.job_statuses[0]
             )
@@ -135,7 +150,7 @@ class FakeApi:
                 "id": "j1",
                 "status": status,
                 "mode": "format",
-                "error": None,
+                "error": self.job_error,
                 "has_pdf": self.has_pdf,
                 "report": self.report if status == "done" else None,
             }
