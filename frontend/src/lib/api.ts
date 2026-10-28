@@ -13,8 +13,13 @@ export class ApiError extends Error {
 
 export interface Me {
   id: number;
-  email: string;
+  email: string | null;
+  telegram_name: string | null;
+  telegram_linked: boolean;
 }
+
+/** Данные, которые отдаёт виджет Telegram Login. */
+export type TelegramAuthData = Record<string, string | number>;
 
 export interface ProfileSummary {
   id: string;
@@ -123,6 +128,11 @@ export interface Extraction {
 }
 
 export const api = {
+  config: () => apiFetch<{ telegram_bot_username: string | null }>("/config"),
+  telegramLogin: (data: TelegramAuthData) =>
+    apiFetch<unknown>("/auth/telegram", { method: "POST", body: JSON.stringify(data) }),
+  telegramLink: (data: TelegramAuthData) =>
+    apiFetch<unknown>("/auth/telegram/link", { method: "POST", body: JSON.stringify(data) }),
   createExtraction: (form: FormData) => apiUpload<{ id: string }>("/extractions", form),
   getExtraction: (id: string) => apiFetch<Extraction>(`/extractions/${id}`),
   getQuota: () => apiFetch<{ used: number; limit: number }>("/extractions/quota"),

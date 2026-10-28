@@ -27,7 +27,7 @@ describe("Header", () => {
   });
   it("пользователь: email и «Выйти» вызывает logout, refresh и переход на /", async () => {
     const refresh = vi.fn().mockResolvedValue(undefined);
-    useMe.mockReturnValue({ me: { id: 1, email: "a@b.c" }, loading: false, refresh });
+    useMe.mockReturnValue({ me: { id: 1, email: "a@b.c", telegram_name: null, telegram_linked: false }, loading: false, refresh });
     apiFetch.mockResolvedValue(undefined);
     render(<Header />);
     expect(screen.getByText("a@b.c")).toBeInTheDocument();
@@ -37,9 +37,14 @@ describe("Header", () => {
     expect(refresh).toHaveBeenCalled();
     expect(push).toHaveBeenCalledWith("/");
   });
+  it("пользователь из Telegram без email: показывает имя из Telegram", () => {
+    useMe.mockReturnValue({ me: { id: 2, email: null, telegram_name: "Иван Петров", telegram_linked: true }, loading: false, refresh: vi.fn() });
+    render(<Header />);
+    expect(screen.getByRole("link", { name: "Иван Петров" })).toHaveAttribute("href", "/account");
+  });
   it("ошибка logout не ломает выход", async () => {
     const refresh = vi.fn().mockResolvedValue(undefined);
-    useMe.mockReturnValue({ me: { id: 1, email: "a@b.c" }, loading: false, refresh });
+    useMe.mockReturnValue({ me: { id: 1, email: "a@b.c", telegram_name: null, telegram_linked: false }, loading: false, refresh });
     apiFetch.mockRejectedValue(new Error("down"));
     render(<Header />);
     await userEvent.click(screen.getByRole("button", { name: "Выйти" }));

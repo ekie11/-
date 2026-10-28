@@ -2,7 +2,7 @@ import { act, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError, type Job } from "@/lib/api";
 
-let me: { id: number; email: string } | null = null;
+let me: { id: number; email: string | null; telegram_name: string | null; telegram_linked: boolean } | null = null;
 vi.mock("@/lib/useMe", () => ({ useMe: () => ({ me, loading: false, refresh: vi.fn() }) }));
 const apiFetch = vi.fn();
 vi.mock("@/lib/api", async (orig) => ({
@@ -73,7 +73,7 @@ describe("JobResult", () => {
   });
 
   it("зарегистрированному плашка не нужна; без PDF нет iframe", async () => {
-    me = { id: 1, email: "a@b.c" };
+    me = { id: 1, email: "a@b.c", telegram_name: null, telegram_linked: false };
     apiFetch.mockResolvedValue(job({ has_pdf: false, report: { issues: [] } }));
     render(<JobResult id="7" />);
     await flush();

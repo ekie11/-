@@ -28,7 +28,7 @@ describe("RequireAuth", () => {
     expect(replace).not.toHaveBeenCalled();
   });
   it("пользователь видит содержимое", () => {
-    useMe.mockReturnValue({ me: { id: 1, email: "a@b.c" }, loading: false, refresh: vi.fn() });
+    useMe.mockReturnValue({ me: { id: 1, email: "a@b.c", telegram_name: null, telegram_linked: false }, loading: false, refresh: vi.fn() });
     render(<RequireAuth>секрет</RequireAuth>);
     expect(screen.getByText("секрет")).toBeInTheDocument();
   });
